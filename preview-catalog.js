@@ -9,6 +9,12 @@
   "demo": true,
   "launchPoints": [
     {
+      "id": "com.webos.app.browser",
+      "title": "Веб-браузер",
+      "icon": "assets/tv-apps/com.webos.app.browser.png",
+      "iconColor": "#ffffff"
+    },
+    {
       "id": "youtube.leanback.v4",
       "title": "YouTube",
       "icon": "assets/tv-apps/youtube.leanback.v4.png",

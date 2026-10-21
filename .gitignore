@@ -24,8 +24,9 @@ known_hosts*
 .DS_Store
 Thumbs.db
 
-# В публичный предпросмотр входят только пять общих примеров.
+# В публичный предпросмотр входят только шесть общих примеров.
 /assets/tv-apps/*
+!/assets/tv-apps/com.webos.app.browser.png
 !/assets/tv-apps/youtube.leanback.v4.png
 !/assets/tv-apps/yota.play.png
 !/assets/tv-apps/rutube.png
