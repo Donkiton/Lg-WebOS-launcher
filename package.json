@@ -1,0 +1,17 @@
+{
+  "name": "lg-home-prototype",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Локальный прототип домашнего экрана LG webOS",
+  "scripts": {
+    "start": "node server.js",
+    "test": "node --test tests/*.test.js",
+    "package:tv": "node scripts/package-tv.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "devDependencies": {
+    "@webos-tools/cli": "3.2.6"
+  }
+}
