@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#07111e">
+  <title>LG Home — прототип</title>
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="styles.css">
+  <script defer src="preview-catalog.js"></script>
+  <script defer src="msx-catalog.js"></script>
+  <script defer src="platform.js"></script>
+  <script defer src="home-state.js"></script>
+  <script defer src="app.js"></script>
+</head>
+<body>
+  <main id="stage" class="stage" aria-label="Прототип домашнего экрана телевизора">
+    <div class="wallpaper" aria-hidden="true"></div>
+    <div class="wallpaper-shade" aria-hidden="true"></div>
+    <section id="home" class="home-view" aria-label="Главный экран">
+      <header class="home-header">
+        <div class="clock" aria-label="Время и дата">
+          <time id="clock-time" class="clock-time">17:42</time>
+          <div id="clock-date" class="clock-date">Вт, 20 октября</div>
+        </div>
+        <div class="header-actions">
+          <button id="all-apps-button" class="icon-button" data-action="apps" aria-label="Все приложения" title="Все приложения"></button>
+          <button id="network-button" class="icon-button" data-action="network" aria-label="Подключение" title="Подключение"></button>
+          <button id="settings-button" class="icon-button" data-action="settings" aria-label="Настройки" title="Настройки"></button>
+        </div>
+      </header>
+      <nav id="home-rail" class="home-rail" aria-label="Приложения"></nav>
+      <p id="remote-hint" class="remote-hint" hidden><span>← →</span> Выбор <span>OK</span> Открыть <span>Удержание OK</span> Меню <span>↑</span> Приложения и настройки</p>
+    </section>
+    <section id="overlay" class="overlay" hidden aria-label="Дополнительный экран"></section>
+    <div id="toast" class="toast" role="status" hidden></div>
+    <div id="announcement" class="sr-only" aria-live="polite"></div>
+  </main>
+</body>
+</html>
