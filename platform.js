@@ -844,6 +844,14 @@
       },
       launchApp: launch,
       openSettings: function () { return launch('com.palm.app.settings'); },
+      openWifiSettings: function () {
+        if (mode === 'browser') return PromiseClass.resolve({ simulated: true });
+        // The installed LG settings app maps WifiConnection to Network/Wifi.
+        // Let webOS handle network selection and credentials in its own UI.
+        return lunaCall(SERVICES.launch, {
+          id: 'com.palm.app.settings', params: { target: 'WifiConnection' }
+        }).then(function () { return { simulated: false }; });
+      },
       switchInput: function (id, control) {
         if (!validId(id)) return PromiseClass.reject(error('INVALID_ID', 'Не указан идентификатор входа.'));
         if (control && control.cancelled === true) return PromiseClass.reject(error('CANCELLED', 'Переключение входа отменено.'));

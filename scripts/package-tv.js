@@ -21,7 +21,7 @@ const ALLOWLIST = Object.freeze([
   'assets/mountain-sunset.png', 'assets/app-icon.png', 'assets/app-icon-large.png'
 ]);
 const MANIFEST = Object.freeze({
-  id: 'org.lggate.launcher', version: '0.1.4', type: 'web', main: 'index.html', title: 'LG Gate',
+  id: 'org.lggate.launcher', version: '0.1.5', type: 'web', main: 'index.html', title: 'LG Gate',
   icon: 'assets/app-icon.png', largeIcon: 'assets/app-icon-large.png', iconColor: '#0b1726',
   resolution: '1920x1080', disableBackHistoryAPI: true, handlesRelaunch: false, transparent: false
 });

@@ -273,8 +273,8 @@
     // Keep the approved Wi-Fi symbol for the connection shortcut in every state.
     button.innerHTML = svg('wifi');
     var label = network.available ? 'Подключение: ' + (network.kind === 'wifi' ? 'Wi-Fi' : network.kind === 'wired' ? 'кабель' : network.kind === 'none' ? 'нет подключения' : 'тип не определён') : 'Подключение: данные недоступны';
-    button.setAttribute('aria-label', label);
-    button.setAttribute('title', label);
+    button.setAttribute('aria-label', 'Сети Wi-Fi. ' + label);
+    button.setAttribute('title', 'Сети Wi-Fi. ' + label);
   }
   function backButton() {
     return '<button id="view-back" class="icon-button back-button" data-action="back" aria-label="Назад" title="Назад">' + svg('back') + '</button>';
@@ -324,15 +324,8 @@
       for (i = 0; i < data.order.length; i++) html += '<div class="reorder-tile' + (data.order[i] === data.appId ? ' is-moving' : '') + '" data-order-app="' + escapeHtml(data.order[i]) + '" style="transform:translateX(' + (i * 298) + 'px)"><span class="slot-number">' + (i + 1) + '</span>' + card(selectedApp(data.order[i]), 'reorder-slot-' + i, ' data-reorder-index="' + i + '"') + '</div>';
       html += '</div><div class="edit-controls"><button id="reorder-left" class="text-button" data-action="move-left" aria-label="Передвинуть влево">←</button><button id="reorder-save" class="text-button" data-action="save-order">Сохранить · OK</button><button id="reorder-right" class="text-button" data-action="move-right" aria-label="Передвинуть вправо">→</button><button id="reorder-back" class="text-button secondary" data-action="back">Отмена</button></div><p class="edit-help">← → Передвинуть <span>↓ Кнопки</span><span>OK Сохранить</span><span>Назад Отменить</span></p>';
     } else if (name === 'network') {
-      html = '<div class="center-dialog" aria-labelledby="dialog-title"><h2 id="dialog-title">Подключение</h2>';
-      if (data.loading) html += '<p>Получаем состояние подключения…</p>';
-      else if (data.error || !network.available) html += '<p>Данные сети недоступны</p><p class="detail-note">' + escapeHtml(data.error || network.message || 'Состояние подключения доступно при запуске на телевизоре.') + '</p>';
-      else {
-        html += detailRow('Подключение', network.kind === 'wifi' ? 'Wi-Fi' : network.kind === 'wired' ? 'Кабель' : network.kind === 'none' ? 'Отсутствует' : 'Тип не определён');
-        html += detailRow('Состояние', network.connected === true ? 'Подключено' : network.connected === false ? 'Отключено' : 'Не определено');
-        if (network.ssid) html += detailRow('Сеть', network.ssid);
-        if (typeof network.internet === 'boolean') html += detailRow('Интернет', network.internet ? 'Доступен' : 'Недоступен');
-      }
+      html = '<div class="center-dialog" aria-labelledby="dialog-title"><h2 id="dialog-title">Сети Wi-Fi</h2><p>' + escapeHtml(data.message || 'Открываем список сетей в настройках LG…') + '</p>';
+      if (data.failed) html += '<button id="network-settings" class="text-button" data-action="network-settings">Настройки телевизора</button>';
       html += '<button id="network-back" class="text-button" data-action="back">Назад</button></div>';
     } else if (name === 'inputs') {
       html = '<div class="center-dialog inputs-dialog" aria-labelledby="dialog-title"><h2 id="dialog-title">Источники сигнала</h2>';
@@ -582,14 +575,14 @@
     view = name;
     viewData = data || {};
     var revision = ++viewRevision;
-    if (name === 'network' || name === 'inputs') viewData.loading = true;
+    if (name === 'inputs') viewData.loading = true;
     renderView(name, viewData);
     updatePriorities();
-    if (name === 'network' || name === 'inputs') {
-      var request = name === 'network' ? refreshNetwork() : platform.mode === 'browser' ? Promise.reject(new Error('В браузере нет доступа к входам телевизора. На LG список запрашивается у webOS.')) : platform.getInputs();
+    if (name === 'inputs') {
+      var request = platform.mode === 'browser' ? Promise.reject(new Error('В браузере нет доступа к входам телевизора. На LG список запрашивается у webOS.')) : platform.getInputs();
       request.then(function (result) {
         if (revision !== viewRevision) return;
-        viewData = { loading: false, items: name === 'inputs' ? result : [] };
+        viewData = { loading: false, items: result };
         updateCurrentView();
       }).catch(function (error) {
         if (revision !== viewRevision) return;
@@ -597,9 +590,9 @@
         updateCurrentView();
       });
     } else if (name === 'apps') loadApps(false);
-    else if (name === 'launch' || name === 'tv-settings' || name === 'input-launch') {
+    else if (name === 'launch' || name === 'network' || name === 'tv-settings' || name === 'input-launch') {
       if (name === 'input-launch') viewData.control = { cancelled: false };
-      var operation = name === 'launch' ? platform.launchApp(viewData.appId) : name === 'tv-settings' ? platform.openSettings() : platform.switchInput(viewData.inputId, viewData.control);
+      var operation = name === 'launch' ? platform.launchApp(viewData.appId) : name === 'network' ? platform.openWifiSettings() : name === 'tv-settings' ? platform.openSettings() : platform.switchInput(viewData.inputId, viewData.control);
       operation.then(function (result) {
         if (revision !== viewRevision) return;
         if (result.embedded) {
@@ -609,12 +602,18 @@
           renderView(view, viewData);
           return;
         }
-        if (!result.simulated) { goHome(); return; }
-        viewData.message = name === 'tv-settings' ? 'На телевизоре этот пункт откроет системные настройки LG. Кнопка ⚙ на пульте также останется доступна.' : name === 'launch' ? 'Предпросмотр запуска. На телевизоре откроется выбранное установленное приложение.' : 'Вход переключается при запуске на телевизоре.';
+        if (!result.simulated) {
+          var returnFocus = name === 'network' ? 'network-button' : viewData.returnFocus;
+          goHome();
+          if (returnFocus) focusId(returnFocus);
+          return;
+        }
+        viewData.message = name === 'network' ? 'На телевизоре откроется список сетей Wi-Fi в настройках LG. Выберите сеть и введите пароль.' : name === 'tv-settings' ? 'На телевизоре этот пункт откроет системные настройки LG. Кнопка ⚙ на пульте также останется доступна.' : name === 'launch' ? 'Предпросмотр запуска. На телевизоре откроется выбранное установленное приложение.' : 'Вход переключается при запуске на телевизоре.';
         updateCurrentView();
       }).catch(function (error) {
         if (revision !== viewRevision) return;
         viewData.message = 'Не удалось открыть: ' + error.message;
+        if (name === 'network') viewData.failed = true;
         updateCurrentView();
       });
     }
@@ -740,6 +739,7 @@
       if (view === 'apps' && viewData.manage) openContext(button);
       else openView('launch', { appId: appId });
     } else if (action === 'back') closeView();
+    else if (action === 'network-settings') openView('tv-settings', { returnFocus: 'network-button' });
     else if (action === 'context-open') {
       var id = viewData.appId;
       closeView();

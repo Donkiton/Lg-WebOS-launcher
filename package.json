@@ -1,6 +1,6 @@
 {
   "name": "lg-home-prototype",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "private": true,
   "description": "Локальный прототип домашнего экрана LG webOS",
   "scripts": {

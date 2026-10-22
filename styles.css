@@ -108,6 +108,7 @@ button:focus { outline: none; }
 .center-dialog p { margin: 0 0 30px; font-size: 26px; line-height: 1.55; color: #b9c6d3; }
 .center-dialog .launch-brand { height: 178px; width: 260px; margin: 0 0 38px; border-radius: 22px; display: flex; align-items: center; justify-content: center; flex-direction: column; position: relative; overflow: hidden; }
 .text-button { padding: 18px 30px; min-height: 65px; border: 2px solid transparent; border-radius: 12px; background: #263c50; color: #fff; font-size: 25px; transition: background var(--motion); }
+#network-settings { margin-right: 16px; }
 .detail-row { display: flex; justify-content: space-between; font-size: 25px; line-height: 1.5; padding: 22px 0; border-bottom: 1px solid var(--line); }
 .detail-row strong { font-weight: 400; color: var(--muted); }
 .center-dialog .detail-note { font-size: 22px; margin-top: 24px; }
