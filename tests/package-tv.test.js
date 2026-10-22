@@ -11,7 +11,7 @@ test('Манифест пробного приложения не запраши
   const manifest = JSON.parse(fs.readFileSync(path.resolve(__dirname, '..', 'appinfo.json'), 'utf8'));
   assert.deepEqual(builder.validateManifest(manifest), builder.MANIFEST);
   assert.equal(manifest.id, 'org.lggate.launcher');
-  assert.equal(manifest.version, '0.1.5');
+  assert.equal(manifest.version, '0.1.6');
   assert.equal(manifest.handlesRelaunch, false);
   assert.equal(manifest.disableBackHistoryAPI, true);
   assert.throws(() => builder.validateManifest(Object.assign({}, manifest, { trustLevel: 'trusted' })), /неподтверждённые/);

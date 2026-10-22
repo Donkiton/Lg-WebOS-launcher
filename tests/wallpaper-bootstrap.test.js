@@ -4,168 +4,140 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const vm = require('node:vm');
 const source = fs.readFileSync(require.resolve('../wallpaper'), 'utf8');
-const app = fs.readFileSync(require.resolve('../app'), 'utf8');
 const index = fs.readFileSync(require('node:path').join(__dirname, '..', 'index.html'), 'utf8');
-const SESSION = 'wake:12345678-1234-5678-90ab-1234567890ab:111111111111111111111111';
-const record = (period, session = SESSION) => ({ version: 1, session, period });
-const params = (period, session) => ({ lgGateStartup: true, lgGateWallpaper: record(period, session) });
-const turn = async () => { for (let i = 0; i < 12; i++) await Promise.resolve(); };
+const saved = selection => JSON.stringify({ version: 2, selection });
+const KEY = 'lg-home-wallpaper-v2-webos';
+const BROWSER_KEY = 'lg-home-wallpaper-v2-browser';
 
-function fixture(value, native = true, cached = null) {
-  const images = [], requests = [], styles = [], order = [];
-  let reads = 0;
-  function Image() {
-    images.push(this);
-    Object.defineProperty(this, 'src', { set(path) { requests.push(path); order.push('image'); } });
-  }
+function fixture(options = {}) {
+  const styles = [], reads = [], order = [];
+  let paramReads = 0, images = 0;
   const document = {
-    head: { appendChild(node) { styles.push(node.textContent); } },
+    head: { appendChild(node) { styles.push(node); order.push('css'); } },
     createElement() { return {}; }
   };
-  const window = { Image, document, navigator: { userAgent: native ? 'webOS' : 'desktop' } };
-  if (native) window.PalmServiceBridge = function () {};
+  const window = { document, navigator: { userAgent: options.browser ? 'desktop' : 'webOS' } };
+  if (!options.browser) window.PalmServiceBridge = function () { throw Error('No service during bootstrap'); };
+  window.Image = function () { images++; throw Error('No Image preload during bootstrap'); };
   window.PalmSystem = {};
-  Object.defineProperty(window.PalmSystem, 'launchParams', { get() { reads++; return value; } });
+  Object.defineProperty(window.PalmSystem, 'launchParams', { get() { paramReads++; if (options.paramsThrow) throw Error('denied'); return options.params; } });
   Object.defineProperty(window, 'localStorage', { configurable: true, get() {
-    if (cached === null) throw Error('Storage unavailable');
-    return { getItem(key) { assert.equal(key, 'lg-home-wallpaper-v1-webos'); return cached; } };
+    if (options.storageThrows) throw Error('Storage unavailable');
+    return { getItem(key) {
+      reads.push(key);
+      if (options.readThrows) throw Error('Storage read denied');
+      return options.items ? options.items.get(key) : options.cached ?? null;
+    } };
   } });
-  const context = vm.createContext({ window, document, Promise: undefined });
+  const context = vm.createContext({ window, document, Promise: undefined, Date: undefined, setTimeout: undefined });
   vm.runInContext(source, context);
-  return { window, document, context, images, requests, styles, order, reads: () => reads, api: window.LauncherWallpaper };
+  return { window, document, context, styles, reads, order, images: () => images, paramReads: () => paramReads, api: window.LauncherWallpaper };
 }
 
-function region(first, after) {
-  const start = app.indexOf(first), end = app.indexOf(after, start);
-  assert.ok(start >= 0 && end > start);
-  return app.slice(start, end);
+function expectedCSS(path) {
+  return '#wallpaper {background-color:#000;background-image:' + (path ? 'url("' + path + '")' : 'none') + '}';
 }
 
-test('Синхронный head bootstrap запрашивает только выбранный PNG до platform и LS2 без Promise', () => {
-  for (const period of ['morning', 'day', 'evening', 'night']) {
-    const h = fixture(JSON.stringify(params(period)));
-    h.order.push('platform/LS2');
-    assert.deepEqual(h.order, ['image', 'platform/LS2']);
-    assert.deepEqual(h.requests, [h.api.BACKGROUNDS[period]]);
-    assert.equal(h.styles.length, 1);
-    assert.equal(h.styles[0], '#wallpaper {background-image:url("' + h.api.BACKGROUNDS[period] + '")}');
-    assert.equal(h.reads(), 1);
-    assert.equal(h.api.early.state, 'loading');
-    let callback = false;
-    h.api.early.listen(error => { assert.equal(error, null); callback = true; });
-    h.images[0].onload();
-    assert.equal(callback, true);
-    assert.equal(h.api.early.state, 'ready');
-    h.api.bootstrap(h.window);
-    assert.equal(h.reads(), 1);
-    assert.equal(h.requests.length, 1);
-  }
+test('Head сразу выбирает lake без параметров, Promise, часов, службы или ожидания onload', () => {
+  const h = fixture();
+  h.order.push('platform/LS2');
+  assert.deepEqual(h.order, ['css', 'platform/LS2']);
+  assert.equal(h.api.early.selection, 'lake');
+  assert.equal(h.api.early.path, 'assets/wallpapers/northern-lake.png');
+  assert.equal(h.styles.length, 1);
+  assert.equal(h.styles[0].textContent, expectedCSS(h.api.BACKGROUNDS.lake));
+  assert.equal(h.styles[0].id, 'lg-gate-wallpaper-bootstrap');
+  assert.equal(h.images(), 0, 'CSS owns the sole initial image request; Image.onload cannot gate it');
+  assert.deepEqual(h.reads, [KEY]);
+  assert.equal(h.paramReads(), 1);
   assert.match(index, /<script src="wallpaper\.js"><\/script>/);
   assert.ok(index.indexOf('src="wallpaper.js"') < index.indexOf('src="platform.js"'));
   assert.ok(index.indexOf('src="wallpaper.js"') < index.indexOf('href="styles.css"'));
 });
 
-test('Bootstrap и controller сохраняют одну фазу legacy cache той же проверенной session', async () => {
-  const cached = JSON.stringify(record('morning'));
-  const h = fixture(params('night'), true, cached);
-  assert.deepEqual(h.requests, ['assets/wallpapers/morning.png']);
-  assert.equal(h.api.early.record.period, 'morning');
-  const node = { style: {} };
-  h.document.getElementById = id => id === 'wallpaper' ? node : null;
-  Object.assign(h.window, { setTimeout, clearTimeout });
-  Object.assign(h.context, { Promise, setTimeout, clearTimeout, wallpaperController: null,
-    platform: { mode: 'webos', getWallpaperRecord() { return Promise.resolve(record('night')); } } });
-  vm.runInContext(region('  function setupWallpaper()', '  function updateClock()') + '\nsetupWallpaper();refreshWallpaper();', h.context);
-  h.images[0].onload(); await turn();
-  assert.equal(node.style.backgroundImage, 'url("assets/wallpapers/morning.png")');
-  h.context.refreshWallpaper(params('night'));
-  await turn();
-  assert.equal(node.style.backgroundImage, 'url("assets/wallpapers/morning.png")');
-  assert.equal(h.images.length, 1);
-  for (const invalid of [JSON.stringify(record('morning', SESSION.replace(/111111111111111111111111$/, '222222222222222222222222'))),
-    JSON.stringify(record('https://evil.example')), 'x'.repeat(513), '{broken']) {
-    const safe = fixture(params('night'), true, invalid);
-    assert.deepEqual(safe.requests, ['assets/wallpapers/night.png']);
+test('Все сохранённые варианты, включая чёрный none, определяют единственную CSS картинку', () => {
+  for (const id of ['lake', 'morning', 'day', 'evening', 'night', 'none']) {
+    const h = fixture({ cached: saved(id) });
+    assert.equal(h.api.early.selection, id);
+    assert.equal(h.styles[0].textContent, expectedCSS(h.api.BACKGROUNDS[id]));
+    assert.equal(h.images(), 0);
+    assert.equal((h.styles[0].textContent.match(/url\(/g) || []).length, id === 'none' ? 0 : 1);
+    for (const other of Object.keys(h.api.BACKGROUNDS)) {
+      if (other !== id && h.api.BACKGROUNDS[other]) assert.ok(!h.styles[0].textContent.includes(h.api.BACKGROUNDS[other]));
+    }
   }
 });
 
-test('Неверный native hint не читает storage и не создаёт запрос картинки или CSS', () => {
-  for (const value of [undefined, '{}', '{bad json', [], { lgGateWallpaper: record('morning') },
-    { ...params('day'), lgGateStartup: false }, params('https://evil.example/a.png'), params('__proto__'),
-    params('day', 'wake:bad'), { lgGateStartup: true, lgGateWallpaper: { ...record('day'), version: 2 } }]) {
-    const h = fixture(value);
-    assert.deepEqual(h.requests, []);
-    assert.deepEqual(h.styles, []);
-    assert.equal(h.api.early, null);
+test('Неверный и старый storage безопасно восстанавливают default без URL из данных', () => {
+  for (const raw of ['{broken', 'null', '[]', 'x'.repeat(129), saved('__proto__'), saved('https://evil.example/a.png'),
+    JSON.stringify({ version: 1, period: 'night' }), JSON.stringify({ version: 1, selection: 'night' })]) {
+    const h = fixture({ cached: raw });
+    assert.equal(h.api.early.selection, 'lake');
+    assert.equal(h.styles[0].textContent, expectedCSS(h.api.BACKGROUNDS.lake));
   }
-  const h = fixture({ ...params('night'), url: 'https://evil.example/a.png' });
-  assert.deepEqual(h.requests, [h.api.BACKGROUNDS.night]);
+  for (const options of [{ storageThrows: true }, { readThrows: true }]) {
+    const h = fixture(options);
+    assert.equal(h.api.early.selection, 'lake');
+    assert.equal(h.styles.length, 1);
+  }
 });
 
-test('Browser preview не читает PalmSystem и не принимает его подсказку', () => {
-  const h = fixture(params('day'), false);
-  assert.equal(h.reads(), 0);
-  assert.equal(h.api.initialParamsRead, false);
-  assert.deepEqual(h.requests, []);
+test('Legacy session cache не мигрирует, browser и webos используют отдельные ключи', () => {
+  const items = new Map([
+    ['lg-home-wallpaper-v1-webos', JSON.stringify({ version: 1, session: 'wake:yesterday', period: 'night' })],
+    [BROWSER_KEY, saved('day')]
+  ]);
+  const tv = fixture({ items });
+  const browser = fixture({ browser: true, items });
+  assert.equal(tv.api.early.selection, 'lake');
+  assert.equal(browser.api.early.selection, 'day');
+  assert.deepEqual(tv.reads, [KEY]); assert.deepEqual(browser.reads, [BROWSER_KEY]);
+  assert.equal(browser.paramReads(), 0);
+  assert.equal(browser.api.initialParamsRead, false);
 });
 
-test('Zona cold fallback использует единственное уже прочитанное значение PalmSystem', () => {
-  const h = fixture('{"shortcut":"zona"}');
-  h.context.platform = { mode: 'webos' };
-  h.context.nativeLaunchSeen = false;
-  h.context.pendingShortcut = null;
-  h.context.tryPendingShortcut = function () {};
-  vm.runInContext(region('  function shortcutFromParams(params)', '  function tryPendingShortcut()') +
-    region('  function handleColdLaunch()', '  function refreshNetwork()') + '\nhandleColdLaunch();', h.context);
-  assert.equal(h.context.pendingShortcut, 'zona');
-  assert.equal(h.reads(), 1);
-  assert.deepEqual(h.requests, []);
+test('Startup wallpaper hints и любые часы никогда не изменяют ручной выбор', () => {
+  for (const params of [undefined, '{}', '{bad json', [],
+    { lgGateStartup: true, lgGateWallpaper: { version: 1, session: 'wake:old', period: 'night' } },
+    { lgGateStartup: true, lgGateWallpaper: { period: 'https://evil.example/a.png' } }]) {
+    const h = fixture({ params, cached: saved('evening') });
+    assert.equal(h.api.early.selection, 'evening');
+    assert.equal(h.styles[0].textContent, expectedCSS(h.api.BACKGROUNDS.evening));
+    assert.equal(h.paramReads(), 1);
+  }
 });
 
-test('Реальный app setup переиспользует раннюю Image и не ждёт getWallpaperRecord для cold hint', async () => {
-  const h = fixture(params('night'));
-  const node = { style: {} }, values = new Map();
-  let serviceReads = 0;
-  h.document.getElementById = id => id === 'wallpaper' ? node : null;
-  Object.defineProperty(h.window, 'localStorage', { value: { getItem: key => values.get(key), setItem: (key, value) => values.set(key, value) } });
-  Object.assign(h.window, { setTimeout, clearTimeout });
-  Object.assign(h.context, { Promise, setTimeout, clearTimeout, wallpaperController: null,
-    platform: { mode: 'webos', getWallpaperRecord() { serviceReads++; return new Promise(() => {}); } } });
-  vm.runInContext(region('  function setupWallpaper()', '  function updateClock()') + '\nsetupWallpaper();refreshWallpaper();', h.context);
-  await turn();
-  assert.equal(serviceReads, 0);
-  assert.equal(h.images.length, 1);
-  h.images[0].onload();
-  await turn();
-  assert.equal(node.style.backgroundImage, 'url("assets/wallpapers/night.png")');
-  assert.equal(h.images.length, 1, 'controller must reuse the preload instead of allocating another Image');
-  assert.equal(h.reads(), 1);
+test('Snapshot launchParams читается ровно один раз и сохраняет shortcut для cold launch', () => {
+  const h = fixture({ params: '{"shortcut":"zona","lgGateStartup":true}' });
+  assert.equal(h.api.initialParamsRead, true);
+  assert.equal(h.api.initialParams.shortcut, 'zona');
+  h.api.bootstrap(h.window);
+  assert.equal(h.paramReads(), 1);
+  assert.equal(h.styles.length, 1);
+  assert.deepEqual(h.reads, [KEY]);
+  const invalid = fixture({ paramsThrow: true });
+  assert.equal(invalid.api.initialParamsRead, true);
+  assert.equal(invalid.api.initialParams, null);
+  assert.equal(invalid.styles.length, 1);
 });
 
-test('Native relaunch передаёт новый hint; Home {} не переиспользует stale PalmSystem', async () => {
-  const h = fixture(params('morning'));
-  const node = { style: {} };
-  let serviceReads = 0, finishOld;
-  h.document.getElementById = id => id === 'wallpaper' ? node : null;
-  Object.assign(h.window, { setTimeout, clearTimeout });
-  Object.assign(h.context, { Promise, setTimeout, clearTimeout, wallpaperController: null,
-    platform: { mode: 'webos', getWallpaperRecord() { serviceReads++; return new Promise(resolve => { finishOld = resolve; }); } },
-    nativeLaunchSeen: false, coldShortcutConsumed: false, cancelActivation() {}, goHome() {} });
-  vm.runInContext(region('  function setupWallpaper()', '  function updateClock()') +
-    region('  function shortcutFromParams(params)', '  function tryPendingShortcut()') +
-    region('  function handleNativeLaunch(event, initial)', '  function handleColdLaunch()') +
-    '\nsetupWallpaper();refreshWallpaper();', h.context);
-  h.images[0].onload(); await turn();
-  h.context.handleNativeLaunch({ detail: {} }, false);
-  await turn();
-  assert.equal(serviceReads, 1);
-  const next = SESSION.replace(/111111111111111111111111$/, '222222222222222222222222');
-  h.context.handleNativeLaunch({ detail: params('night', next) }, false);
-  await turn();
-  assert.equal(h.images.length, 2);
-  h.images[1].onload(); await turn();
-  finishOld(record('day')); await turn();
-  assert.equal(node.style.backgroundImage, 'url("assets/wallpapers/night.png")');
-  assert.equal(h.reads(), 1);
-  assert.equal(serviceReads, 1, 'prepared relaunch must not start another Homebrew request');
+test('Bootstrap browser тоже идемпотентен и не создаёт повторный CSS или preload', () => {
+  const h = fixture({ browser: true, cached: saved('none') });
+  h.api.bootstrap(h.window);
+  h.api.bootstrap(h.window);
+  assert.deepEqual(h.reads, [BROWSER_KEY]);
+  assert.equal(h.styles.length, 1);
+  assert.equal(h.images(), 0);
+  assert.equal(h.paramReads(), 0);
+});
+
+test('Сбой добавления раннего CSS не выбрасывает исключение и оставляет валидный selection для app', () => {
+  const window = {
+    navigator: { userAgent: 'webOS' },
+    document: { createElement() { return {}; }, head: { appendChild() { throw Error('head unavailable'); } } },
+    localStorage: { getItem() { return saved('night'); } }
+  };
+  vm.runInNewContext(source, { window, Promise: undefined });
+  assert.equal(window.LauncherWallpaper.early.selection, 'night');
+  assert.equal(window.LauncherWallpaper.early.path, 'assets/wallpapers/night.png');
 });

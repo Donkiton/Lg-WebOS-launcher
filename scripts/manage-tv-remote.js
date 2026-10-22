@@ -111,7 +111,7 @@ async function apply() {
   const device = validateDevice(await createTransport().preflight());
   const target = JSON.parse(await ssh('luna-send -n 1 -f luna://com.webos.applicationManager/getAppInfo ' + quote(JSON.stringify({ id: profile.target }))));
   if (target.returnValue !== true || !target.appInfo || target.appInfo.id !== profile.target || target.appInfo.title !== profile.title) throw Error('Не найдено ожидаемое приложение ' + profile.title + '.');
-  if (profileName === 'zona' && !['0.1.2', '0.1.3', '0.1.4', '0.1.5'].includes(target.appInfo.version)) throw Error('Для кнопки Zona сначала установите проверенную LG Gate 0.1.2–0.1.5 с поддержкой команды запуска.');
+  if (profileName === 'zona' && !['0.1.2', '0.1.3', '0.1.4', '0.1.5', '0.1.6'].includes(target.appInfo.version)) throw Error('Для кнопки Zona сначала установите проверенную LG Gate 0.1.2–0.1.6 с поддержкой команды запуска.');
   const source = fs.readFileSync(SOURCE);
   const expectedHash = hash(source);
   const current = await inspect();

@@ -173,7 +173,7 @@ test('Правила Zona и IVI сохраняются и удаляются н
 });
 
 test('Zona требует обновлённый лаунчер до изменения фильтров', async () => {
-  for (const targetVersion of ['0.1.1', '0.1.6', '0.1.50']) {
+  for (const targetVersion of ['0.1.1', '0.1.7', '0.1.50']) {
     const f = fakeManager({ profileName: 'zona', targetVersion });
     await assert.rejects(f.main('apply'), /0\.1\.2/);
     assert.equal(f.state.writes.length, 0);
@@ -181,7 +181,7 @@ test('Zona требует обновлённый лаунчер до измен�
 });
 
 test('Применение и откат Zona сохраняют существующее правило IVI → YouTube', async () => {
-  for (const targetVersion of ['0.1.2', '0.1.3', '0.1.4', '0.1.5']) {
+  for (const targetVersion of ['0.1.2', '0.1.3', '0.1.4', '0.1.5', '0.1.6']) {
     const f = fakeManager({ profileName: 'zona', targetVersion });
     f.state.filters = manager.addFilter(original);
     f.state.factory = { present: true, value: clone(f.state.filters) };

@@ -76,13 +76,7 @@ clock = Clock()
 client = Client(clock)
 messages = []
 session_path = os.path.join(folder, 'session.json')
-class LocalClock:
-    def __init__(self): self.year, self.hour, self.failure = 2026, 7, False
-    def __call__(self):
-        if self.failure: raise ValueError('TV clock unavailable')
-        return m.time.struct_time((self.year, 10, 22, self.hour, 0, 0, 3, 295, -1))
-local_clock = LocalClock()
-session = m.PowerSession(session_path, boot_id='12345678-1234-5678-90ab-1234567890ab', local_clock=local_clock)
+session = m.PowerSession(session_path, boot_id='12345678-1234-5678-90ab-1234567890ab')
 runtime = m.Runtime(client, enabled, manifest, backup, clock, clock.sleep, messages.append, session)
 def launches(): return [call for call in client.calls if call[0] == m.LAUNCH]
 `;
@@ -99,10 +93,7 @@ test('Автозапуск: первый Active запускает LG Gate по�
 assert runtime.run(once=True) is True
 assert len(launches()) == 1
 assert launches()[0][2] >= 3
-marker = m.read_json(session_path, 512)
-assert launches()[0][1] == {'id': m.APP_ID, 'params': {'lgGateStartup': True,
-    'lgGateWallpaper': {'version': 1, 'session': 'wake:' + marker['bootId'] + ':' + marker['sessionId'],
-                        'period': 'morning'}}}
+assert launches()[0][1] == {'id': m.APP_ID, 'params': {'lgGateStartup': True}}
 foreground_checks = [call for call in client.calls if call[0] == m.FOREGROUND]
 assert len(foreground_checks) >= 3
 assert foreground_checks[-1][2] - foreground_checks[-2][2] >= 0.29
@@ -152,120 +143,72 @@ assert another_boot.record['sessionId'] != awake
 assert another_boot.record['bootId'] != session.boot_id
 `));
 
-test('Фон выбирается по локальным часам на границах периодов и публикуется компактно', () => python(`
-for index, pair in enumerate([(0, 'night'), (5, 'night'), (6, 'morning'), (10, 'morning'),
-                              (11, 'day'), (17, 'day'), (18, 'evening'), (22, 'evening'), (23, 'night')]):
-    hour, period = pair
-    local_clock.hour = hour
-    location = os.path.join(folder, 'phase-' + str(index) + '.json')
-    selected = m.PowerSession(location, boot_id=session.boot_id, local_clock=local_clock)
-    assert selected.wallpaper_params() == {}, 'no active session may be invented by reading launch data'
-    assert selected.observe('Active') is True
-    marker = m.read_json(location, 512)
-    assert marker['wallpaperPeriod'] == period
-    assert selected.wallpaper_params() == {'lgGateWallpaper': {'version': 1,
-        'session': 'wake:' + marker['bootId'] + ':' + marker['sessionId'], 'period': period}}
-    assert os.path.getsize(location) <= 512
+test('Legacy marker с wallpaperPeriod сохраняет awake ID, а следующая публикация содержит только данные session', () => python(`
+legacy = {'version': 1, 'bootId': session.boot_id, 'sessionId': 'a' * 24, 'sleeping': False}
+for period in ['morning', 'day', 'evening', 'night', 'not-a-period', None, [], {}, 42]:
+    saved = dict(legacy, wallpaperPeriod=period, extra='ignored')
+    write_json(session_path, saved)
+    before = open(session_path, 'rb').read()
+    restored = m.PowerSession(session_path, boot_id=session.boot_id)
+    assert restored.observe('Active') is False
+    assert restored.record == legacy
+    assert open(session_path, 'rb').read() == before, 'unchanged Active must not rewrite the marker'
+    assert restored.observe('Screen Off') is False
+    assert restored.observe('Screen Saver') is False
+    assert restored.observe('Transition') is False
+    assert restored.observe('Active Standby') is True
+    sleeping = dict(legacy, sleeping=True)
+    assert m.read_json(session_path, 512) == sleeping
+    assert restored.observe('Active') is True
+    marker = m.read_json(session_path, 512)
+    assert set(marker) == set(legacy)
+    assert marker['bootId'] == legacy['bootId'] and marker['sleeping'] is False
+    assert marker['sessionId'] != legacy['sessionId']
+    assert os.path.getsize(session_path) <= 512
 assert not [name for name in os.listdir(folder) if '.new.' in name]
 `));
 
-test('Фон одного awake сохраняется при смене часа, Screen Off и рестарте; wake/boot выбирают заново', () => python(`
-assert session.observe('Active') is True
-first = session.wallpaper_params()['lgGateWallpaper']
-assert first['period'] == 'morning'
-before = open(session_path, 'rb').read()
-local_clock.hour = 14
-for state in ['Active', 'Screen Off', 'Screen Saver', 'Transition', 'Active']:
-    assert session.observe(state) is False
-assert session.wallpaper_params()['lgGateWallpaper'] == first
-assert open(session_path, 'rb').read() == before
-restarted = m.PowerSession(session_path, boot_id=session.boot_id, local_clock=local_clock)
-assert restarted.observe('Active') is False
-assert restarted.wallpaper_params()['lgGateWallpaper'] == first
-assert restarted.observe('Active Standby') is True
-assert restarted.record['wallpaperPeriod'] == 'morning'
-assert restarted.wallpaper_params() == {}
-local_clock.hour = 23
-assert restarted.observe('Transition') is False
-assert restarted.observe('Active') is True
-next_wake = restarted.wallpaper_params()['lgGateWallpaper']
-assert next_wake['period'] == 'night' and next_wake['session'] != first['session']
-local_clock.hour = 14
-new_boot = m.PowerSession(session_path, boot_id='abcdef01-2345-6789-abcd-0123456789ab', local_clock=local_clock)
-assert new_boot.observe('Active') is True
-assert new_boot.wallpaper_params()['lgGateWallpaper']['period'] == 'day'
-assert new_boot.wallpaper_params()['lgGateWallpaper']['session'] != next_wake['session']
-`));
-
-test('Параметры запуска передают ранний выбор, сохраняя исходную трёхсекундную задержку', () => python(`
-local_clock.hour = 10
-def later_clock(): local_clock.hour = 11
-client.events = [[(0, 'Active'), (1, later_clock)]]
+test('Legacy фаза не передаётся в запуск и не меняет трёхсекундную задержку boot/wake', () => python(`
+legacy = {'version': 1, 'bootId': session.boot_id, 'sessionId': 'b' * 24,
+          'sleeping': True, 'wallpaperPeriod': 'night'}
+write_json(session_path, legacy)
 assert runtime.run(once=True) is True
 assert len(launches()) == 1 and launches()[0][2] == 3.0
-assert launches()[0][1]['params']['lgGateWallpaper']['period'] == 'morning'
-assert m.read_json(session_path, 512)['wallpaperPeriod'] == 'morning'
-assert local_clock.hour == 11
+assert launches()[0][1] == {'id': m.APP_ID, 'params': {'lgGateStartup': True}}
+marker = m.read_json(session_path, 512)
+assert marker['sessionId'] != legacy['sessionId'] and marker['sleeping'] is False
+assert 'wallpaperPeriod' not in marker
+client.calls = []
+write_json(session_path, dict(legacy, sleeping=False, wallpaperPeriod='morning'))
+runtime.session = m.PowerSession(session_path, boot_id=session.boot_id)
+assert runtime.session.observe('Active') is False
+assert runtime.launch_attempt(clock() + 10) == 'launched'
+assert launches()[0][1] == {'id': m.APP_ID, 'params': {'lgGateStartup': True}}
+assert runtime.session.record['sessionId'] == legacy['sessionId']
 `));
 
-test('Legacy marker дополняется фазой один раз без смены session ID и без сохранения чужих полей', () => python(`
-legacy = {'version': 1, 'bootId': session.boot_id, 'sessionId': 'a' * 24, 'sleeping': False}
-for invalid in [None, 'not-a-period', [], {}, 42]:
-    saved = dict(legacy)
-    if invalid is not None: saved['wallpaperPeriod'] = invalid
-    saved['extra'] = 'ignored'
-    write_json(session_path, saved)
-    restored = m.PowerSession(session_path, boot_id=session.boot_id, local_clock=local_clock)
-    assert restored.wallpaper_params() == {'lgGateWallpaper': {'version': 1,
-        'session': 'wake:' + session.boot_id + ':' + legacy['sessionId'], 'period': 'morning'}}
-    assert restored.record['sessionId'] == legacy['sessionId']
-    assert restored.observe('Active') is False
-    assert 'extra' not in m.read_json(session_path, 512)
-    local_clock.hour = 23
-    assert restored.wallpaper_params()['lgGateWallpaper']['period'] == 'morning'
-    local_clock.hour = 7
-assert not [name for name in os.listdir(folder) if '.new.' in name]
-`));
-
-test('Неверные часы оставляют фазу пустой и допускают исправление в той же session', () => python(`
-for year, hour, failure in [(1970, 7, False), (2026, 24, False), (2026, -1, False), (2026, 7, True)]:
-    local_clock.year, local_clock.hour, local_clock.failure = year, hour, failure
-    selected = m.PowerSession(os.path.join(folder, 'bad-clock-' + str(year) + '-' + str(hour) + '-' + str(failure)),
-                              boot_id=session.boot_id, local_clock=local_clock)
-    assert selected.observe('Active') is True
-    identity = selected.record['sessionId']
-    assert 'wallpaperPeriod' not in selected.record
-    assert selected.wallpaper_params() == {}
-    local_clock.year, local_clock.hour, local_clock.failure = 2026, 14, False
-    params = selected.wallpaper_params()['lgGateWallpaper']
-    assert params['period'] == 'day' and selected.record['sessionId'] == identity
-    local_clock.hour = 23
-    assert selected.wallpaper_params()['lgGateWallpaper'] == params
-local_clock.year, local_clock.hour, local_clock.failure = 1970, 7, False
-legacy = {'version': 1, 'bootId': session.boot_id, 'sessionId': 'b' * 24, 'sleeping': False}
-write_json(session_path, legacy)
-restored = m.PowerSession(session_path, boot_id=session.boot_id, local_clock=local_clock)
-assert restored.observe('Active') is False and restored.wallpaper_params() == {}
-assert restored.record['sessionId'] == legacy['sessionId']
-local_clock.year, local_clock.hour = 2026, 18
-assert restored.observe('Active') is True
-assert restored.wallpaper_params()['lgGateWallpaper']['period'] == 'evening'
-assert restored.record['sessionId'] == legacy['sessionId']
-`));
-
-test('Неудачная атомарная миграция фазы не повреждает marker и допускает повтор', () => python(`
-legacy = {'version': 1, 'bootId': session.boot_id, 'sessionId': 'c' * 24, 'sleeping': False}
+test('Неудачная атомарная публикация wake не повреждает marker и допускает повтор', () => python(`
+legacy = {'version': 1, 'bootId': session.boot_id, 'sessionId': 'c' * 24,
+          'sleeping': True, 'wallpaperPeriod': 'evening'}
 write_json(session_path, legacy)
 before = open(session_path, 'rb').read()
 original_replace = m.os.replace
+
 def fail_replace(source, target): raise OSError('read-only marker destination')
 m.os.replace = fail_replace
-assert session.wallpaper_params() == {}
+try:
+    session.observe('Active')
+    raise AssertionError('failed publication must report failure')
+except OSError:
+    pass
 assert open(session_path, 'rb').read() == before
+assert session.record['sessionId'] == legacy['sessionId'] and session.record['sleeping'] is True
 assert not [name for name in os.listdir(folder) if '.new.' in name]
 m.os.replace = original_replace
-assert session.wallpaper_params()['lgGateWallpaper']['period'] == 'morning'
-assert session.record['sessionId'] == legacy['sessionId']
+assert session.observe('Active') is True
+marker = m.read_json(session_path, 512)
+assert marker['sessionId'] != legacy['sessionId'] and marker['sleeping'] is False
+assert 'wallpaperPeriod' not in marker
 `));
 
 test('TV session игнорирует повреждённый или чрезмерный marker и читает boot ID с ограничением', () => python(`
@@ -296,18 +239,17 @@ assert not [call for call in client.calls if call[0].endswith('setSystemSettings
 assert os.path.isfile(enabled)
 `));
 
-test('Ошибка необязательной передачи фона и неверные часы не мешают штатному запуску', () => python(`
-local_clock.year = 1970
+test('Автозапуск и awake marker не зависят от локальных часов телевизора', () => python(`
+def unavailable_clock(*args): raise AssertionError('Wallpaper must not read the TV local clock')
+m.time.localtime = unavailable_clock
 assert runtime.run(once=True) is True
 assert launches()[0][1]['params'] == {'lgGateStartup': True}
 assert runtime.schedule.delay == 3.0 and runtime.schedule.window == 60.0 and runtime.schedule.retry == 3.0
-client.closed = False
-client.calls = []
-def fail_wallpaper(): raise ValueError('optional metadata failed')
-runtime.session.wallpaper_params = fail_wallpaper
-assert runtime.launch_attempt(clock() + 10) == 'launched'
-assert launches()[0][1]['params'] == {'lgGateStartup': True}
-assert any('Wallpaper launch metadata:' in message for message in messages)
+marker = m.read_json(session_path, 512)
+assert set(marker) == {'version', 'bootId', 'sessionId', 'sleeping'}
+assert session.observe('Active Standby') is True
+assert session.observe('Active') is True
+assert session.record['sessionId'] != marker['sessionId']
 assert not [call for call in client.calls if call[0].endswith('setSystemSettings')]
 `));
 

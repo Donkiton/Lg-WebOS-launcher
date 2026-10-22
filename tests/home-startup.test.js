@@ -106,7 +106,7 @@ function harness(options = {}) {
     launchApp(id) { return Promise.resolve({ simulated: true, id }); }
   };
   const window = element('window');
-  Object.assign(window, { LauncherPlatform: platform, LauncherHomeState: homeState, innerWidth: 1920, innerHeight: 1080, setTimeout() { return 1; }, clearTimeout() {}, setInterval() {} });
+  Object.assign(window, { LauncherPlatform: platform, LauncherHomeState: homeState, LauncherWallpaper: require('../wallpaper'), innerWidth: 1920, innerHeight: 1080, setTimeout() { return 1; }, clearTimeout() {}, setInterval() {} });
   const context = vm.createContext({
     window, document, Promise, console,
     localStorage: {

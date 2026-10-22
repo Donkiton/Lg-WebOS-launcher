@@ -107,7 +107,7 @@ function harness(options = {}) {
     launchApp(id) { launches.push(id); return options.launchApp ? options.launchApp(id) : Promise.resolve({ embedded: true, url: 'https://catalog.example/current-zona' }); }
   };
   const window = element('window');
-  Object.assign(window, { LauncherPlatform: platform, LauncherHomeState: homeState, LauncherMSXCatalog: require('../msx-catalog'), PalmSystem: { launchParams: options.launchParams }, innerWidth: 1920, innerHeight: 1080, setTimeout() { return 1; }, clearTimeout() {}, setInterval() {} });
+  Object.assign(window, { LauncherPlatform: platform, LauncherHomeState: homeState, LauncherWallpaper: require('../wallpaper'), LauncherMSXCatalog: require('../msx-catalog'), PalmSystem: { launchParams: options.launchParams }, innerWidth: 1920, innerHeight: 1080, setTimeout() { return 1; }, clearTimeout() {}, setInterval() {} });
   const context = vm.createContext({
     window, document, Promise, console,
     localStorage: {

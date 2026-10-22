@@ -651,21 +651,17 @@ def valid_backup(backup):
 
 
 class PowerSession(object):
-    """Publish catalogue freshness and a wallpaper choice, separate from launch policy.
+    """Publish catalogue freshness, separate from launch policy.
 
     Quick Start keeps the kernel boot ID across standby; WAM may restart the
     launcher while the TV is still awake. Only a genuine sleep/Active cycle
     rotates the token. A daemon restart reuses its published awake session.
     """
-    WALLPAPER_PERIODS = frozenset(('morning', 'day', 'evening', 'night'))
-
-    def __init__(self, path=SESSION, boot_path=BOOT_ID, boot_id=None, make_id=None,
-                 local_clock=None):
+    def __init__(self, path=SESSION, boot_path=BOOT_ID, boot_id=None, make_id=None):
         self.path = path
         self.boot_path = boot_path
         self.boot_id = boot_id
         self.make_id = make_id or (lambda: ''.join('%02x' % byte for byte in bytearray(os.urandom(12))))
-        self.local_clock = local_clock or time.localtime
         self.loaded = False
         self.record = None
 
@@ -701,32 +697,10 @@ class PowerSession(object):
                     isinstance(saved.get('sleeping'), bool)):
                 self.record = {'version': 1, 'bootId': saved['bootId'],
                                'sessionId': saved['sessionId'], 'sleeping': saved['sleeping']}
-                if (isinstance(saved.get('wallpaperPeriod'), string_types) and
-                        saved['wallpaperPeriod'] in self.WALLPAPER_PERIODS):
-                    self.record['wallpaperPeriod'] = saved['wallpaperPeriod']
         except (IOError, OSError, ValueError, UnicodeError):
             pass
         self.loaded = True
         return True
-
-    def current_period(self):
-        # TV localtime follows the same configured timezone as the launcher.
-        # An unset boot clock must remain retryable, never become an evening
-        # selection that would be held for the whole awake session.
-        try:
-            current = self.local_clock()
-            if current.tm_year < 2020 or not 0 <= current.tm_hour <= 23:
-                return None
-            hour = current.tm_hour
-            if 6 <= hour < 11:
-                return 'morning'
-            if 11 <= hour < 18:
-                return 'day'
-            if 18 <= hour < 23:
-                return 'evening'
-            return 'night'
-        except Exception:
-            return None  # Optional wallpaper data never blocks startup.
 
     def write(self, record):
         session_id = record['sessionId']
@@ -763,37 +737,7 @@ class PowerSession(object):
             raise ValueError('Invalid power session ID')
         record = {'version': 1, 'bootId': self.boot_id,
                   'sessionId': session_id, 'sleeping': sleeping}
-        period = self.record.get('wallpaperPeriod') if sleeping and self.record else None
-        if not sleeping:
-            period = self.current_period()
-        if period in self.WALLPAPER_PERIODS:
-            record['wallpaperPeriod'] = period
         self.write(record)
-
-    def ensure_wallpaper(self):
-        if not self.record or self.record['sleeping'] or 'wallpaperPeriod' in self.record:
-            return False
-        period = self.current_period()
-        if period is None:
-            return False
-        record = dict(self.record)
-        record['wallpaperPeriod'] = period
-        self.write(record)
-        return True
-
-    def wallpaper_params(self):
-        try:
-            if not self.load() or not self.record or self.record['sleeping']:
-                return {}
-            self.ensure_wallpaper()
-            period = self.record.get('wallpaperPeriod')
-            if period not in self.WALLPAPER_PERIODS:
-                return {}
-            return {'lgGateWallpaper': {'version': 1,
-                    'session': 'wake:' + self.boot_id + ':' + self.record['sessionId'],
-                    'period': period}}
-        except Exception:
-            return {}  # Marker/clock failure must not delay or prevent launch.
 
     def observe(self, state):
         if not isinstance(state, string_types) or not self.load():
@@ -801,7 +745,7 @@ class PowerSession(object):
         state = ' '.join(state.lower().split())
         if state == 'active':
             if self.record and not self.record['sleeping']:
-                return self.ensure_wallpaper()
+                return False
             self.publish(False)
             return True
         if state in PowerSchedule.SLEEP_STATES:
@@ -898,12 +842,7 @@ class Runtime(object):
                 return 'retry'
             # Relaunch even an existing LG Gate instance: it may host a portal
             # left open before standby, and must return to its own home screen.
-            params = {'lgGateStartup': True}
-            try:
-                params.update(self.session.wallpaper_params())
-            except Exception as error:
-                self.log('Wallpaper launch metadata: ' + text_type(error))
-            call(LAUNCH, {'id': APP_ID, 'params': params})
+            call(LAUNCH, {'id': APP_ID, 'params': {'lgGateStartup': True}})
             stable = 0
             verify_deadline = min(deadline, self.clock() + 3.0)
             while not self.stopped and self.clock() < verify_deadline:

@@ -11,9 +11,16 @@ const { ALLOWLIST, validateManifest } = require('./package-tv');
 
 const ROOT = path.resolve(__dirname, '..');
 const APP_ID = 'org.lggate.launcher';
-const VERSION = '0.1.5';
-const ROLLBACK_VERSION = '0.1.4';
-const PREPARED = '.build/wifi-handoff/';
+const VERSION = '0.1.6';
+const ROLLBACK_VERSION = '0.1.5';
+const PREPARED = '.build/manual-wallpaper-handoff/';
+// Freeze the previous release's exact file set independently of the current
+// builder. A rollback must neither require nor permit the new wallpaper.
+const ROLLBACK_ALLOWLIST = Object.freeze([
+  'appinfo.json', 'index.html', 'portal.html', 'app.js', 'msx-catalog.js', 'platform.js', 'wallpaper.js', 'home-state.js', 'styles.css',
+  'assets/wallpapers/morning.png', 'assets/wallpapers/day.png', 'assets/wallpapers/night.png',
+  'assets/mountain-sunset.png', 'assets/app-icon.png', 'assets/app-icon-large.png'
+]);
 const PLAN_PATH = PREPARED + 'install-plan.json';
 const IPK_PATH = PREPARED + APP_ID + '_' + VERSION + '_all.ipk';
 const ROLLBACK_PATH = PREPARED + 'rollback/' + APP_ID + '_' + ROLLBACK_VERSION + '_all.ipk';
@@ -98,8 +105,14 @@ function tarFiles(compressed) {
   throw Error('Отсутствует конец tar-архива.');
 }
 
+function allowlistFor(version) {
+  if (version === VERSION) return ALLOWLIST;
+  if (version === ROLLBACK_VERSION) return ROLLBACK_ALLOWLIST;
+  throw Error('Неизвестная версия подготовленного пакета.');
+}
+
 function validatePackage(data, entries, version = VERSION) {
-  if (![VERSION, ROLLBACK_VERSION].includes(version)) throw Error('Неизвестная версия подготовленного пакета.');
+  const allowlist = allowlistFor(version);
   const members = archiveMembers(data);
   const control = tarFiles(members.get('control.tar.gz'));
   if (control.size !== 1 || !control.has('control')) throw Error('Подготовленный пакет содержит неподтверждённые установочные скрипты.');
@@ -109,12 +122,12 @@ function validatePackage(data, entries, version = VERSION) {
   const files = tarFiles(members.get('data.tar.gz'));
   const prefix = 'usr/palm/applications/' + APP_ID + '/';
   const packageInfo = 'usr/palm/packages/' + APP_ID + '/packageinfo.json';
-  const checkedEntries = entries || ALLOWLIST.map(filename => {
+  const checkedEntries = entries || allowlist.map(filename => {
     const contents = files.get(prefix + filename);
     if (!contents) throw Error('В IPK отсутствует разрешённый файл: ' + filename);
     return { path: filename, sha256: hash(contents) };
   });
-  validateEntries(checkedEntries);
+  validateEntries(checkedEntries, version);
   if (files.size !== checkedEntries.length + 1 || !files.has(packageInfo)) throw Error('Неожиданный состав приложения внутри IPK.');
   const allowedFiles = checkedEntries.map(entry => prefix + entry.path).concat(packageInfo);
   if (files.directories.some(directory => !allowedFiles.some(filename => filename.startsWith(directory + '/')))) throw Error('IPK содержит неподтверждённую папку.');
@@ -125,19 +138,20 @@ function validatePackage(data, entries, version = VERSION) {
   const manifest = JSON.parse(files.get(prefix + 'appinfo.json').toString('utf8'));
   if (manifest.version !== version) throw Error('Версия appinfo.json не соответствует подготовленному пакету.');
   // The rollback keeps the same approved manifest schema. Only its explicitly
-  // checked previous version differs; the builder remains strict for 0.1.5.
+  // checked previous version differs; the builder remains strict for 0.1.6.
   validateManifest({ ...manifest, version: VERSION });
   const info = JSON.parse(files.get(packageInfo).toString('utf8'));
   if (info.id !== APP_ID || info.app !== APP_ID || info.version !== version) throw Error('packageinfo.json не соответствует LG Gate.');
   return checkedEntries;
 }
 
-function validateEntries(entries) {
-  if (!Array.isArray(entries) || entries.length !== ALLOWLIST.length) throw Error('План не содержит все 15 разрешённых файлов.');
+function validateEntries(entries, version = VERSION) {
+  const allowlist = allowlistFor(version);
+  if (!Array.isArray(entries) || entries.length !== allowlist.length) throw Error('План не содержит все ' + allowlist.length + ' разрешённых файлов версии ' + version + '.');
   const seen = new Set();
   for (const entry of entries) {
     keys(entry, ['path', 'sha256'], 'файла приложения');
-    if (!ALLOWLIST.includes(entry.path) || seen.has(entry.path) || !validHash(entry.sha256)) throw Error('Неизвестный путь, повтор или SHA256 файла в плане.');
+    if (!allowlist.includes(entry.path) || seen.has(entry.path) || !validHash(entry.sha256)) throw Error('Неизвестный путь, повтор или SHA256 файла в плане.');
     seen.add(entry.path);
   }
 }
@@ -150,7 +164,7 @@ function validatePlan(plan, options = {}) {
   keys(plan.expectedDevice, Object.keys(EXPECTED_DEVICE), 'конфигурации ТВ');
   if (Object.keys(EXPECTED_DEVICE).some(key => plan.expectedDevice[key] !== EXPECTED_DEVICE[key])) throw Error('План предназначен для другой конфигурации ТВ.');
   validateEntries(plan.files);
-  validateEntries(plan.rollback.files);
+  validateEntries(plan.rollback.files, ROLLBACK_VERSION);
   const root = options.root || ROOT;
   const ipkAbsolute = localFile(root, plan.ipk);
   const rollbackAbsolute = localFile(root, plan.rollback.ipk);
@@ -177,7 +191,7 @@ function validateDevice(device, expected = EXPECTED_DEVICE) {
   if (!object(device) || device.uid !== '0') throw Error('Для обновления требуется существующий root-доступ.');
   const system = device.system;
   if (!object(system) || system.returnValue !== true || typeof system.modelName !== 'string' || system.modelName.trim() !== system.modelName || !/^(?:[0-9]{2,3})?SM8200PLA$/.test(system.modelName) || system.firmwareVersion !== expected.firmwareVersion || system.sdkVersion !== expected.sdkVersion) throw Error('Модель, прошивка или webOS телевизора не совпадает с проверенной конфигурацией.');
-  appInfo(device.app, APP_ID, ['0.1.0', '0.1.1', '0.1.2', '0.1.3', ROLLBACK_VERSION, VERSION]);
+  appInfo(device.app, APP_ID, ['0.1.0', '0.1.1', '0.1.2', '0.1.3', '0.1.4', ROLLBACK_VERSION, VERSION]);
   appInfo(device.homebrew, 'org.webosbrew.hbchannel', [expected.homebrewVersion]);
   const marker = device.session;
   if (typeof device.bootId !== 'string' || device.bootId.length !== 36 || !UUID.test(device.bootId) || !object(marker) || marker.version !== 1 || marker.bootId !== device.bootId || typeof marker.sessionId !== 'string' || marker.sessionId.length !== 24 || !/^[0-9a-f]{24}$/.test(marker.sessionId) || marker.sleeping !== false) throw Error('Нет действующего wake marker текущего включения. Требуется отдельная проверка runtime; автоматическая установка остановлена.');
@@ -298,15 +312,16 @@ function createTransport(options = {}) {
       const params = { id: APP_ID, ipkUrl: remotePath(remote), subscribe: true };
       return ssh('luna-send -i -f luna://com.webos.appInstallService/dev/install ' + quote(JSON.stringify(params)), true);
     },
-    async verify(files) {
-      if (!Array.isArray(files) || files.length !== ALLOWLIST.length || new Set(files.map(entry => entry.path)).size !== ALLOWLIST.length || files.some(entry => !ALLOWLIST.includes(entry.path))) throw Error('Некорректный состав проверки файлов.');
+    async verify(files, version = VERSION) {
+      const allowlist = allowlistFor(version);
+      validateEntries(files, version);
       const app = await rpc('luna://com.webos.applicationManager/getAppInfo', { id: APP_ID });
       const output = (await ssh('sha256sum ' + files.map(entry => quote(INSTALLED_ROOT + '/' + entry.path)).join(' '))).stdout.trim();
       const hashes = {};
       for (const line of output.split(/\r?\n/)) {
         const match = line.match(/^([0-9a-f]{64}) [ *](.+)$/);
         const relative = match && match[2].startsWith(INSTALLED_ROOT + '/') ? match[2].slice(INSTALLED_ROOT.length + 1) : '';
-        if (!match || !ALLOWLIST.includes(relative) || Object.prototype.hasOwnProperty.call(hashes, relative)) throw Error('Некорректная SHA256 установленного файла.');
+        if (!match || !allowlist.includes(relative) || Object.prototype.hasOwnProperty.call(hashes, relative)) throw Error('Некорректная SHA256 установленного файла.');
         hashes[relative] = match[1];
       }
       return { app, hashes };
@@ -326,7 +341,7 @@ async function installVerified(plan, transport, rollback = false) {
   if (!object(receipt) || receipt.failed || receipt.installed !== true && receipt.timedOut !== true) throw Error('Установка не сообщила terminal installed и не завершилась разрешённым таймаутом.');
   // Even an installed event is insufficient. Check exact installed version and
   // every prepared file independently before launching the new application.
-  const actual = await transport.verify(target.files);
+  const actual = await transport.verify(target.files, version);
   appInfo(actual && actual.app, APP_ID, [version]);
   if (!object(actual.hashes) || Object.keys(actual.hashes).length !== target.files.length || target.files.some(entry => actual.hashes[entry.path] !== entry.sha256)) throw Error('SHA256 установленного приложения не совпала. Запуск отменён.');
   const launch = await transport.launch();
@@ -362,4 +377,4 @@ async function main(argv = [], deps = {}) {
 
 if (require.main === module) main(process.argv.slice(2)).then(result => console.log(JSON.stringify(result, null, 2))).catch(error => { console.error(error.message); process.exitCode = 1; });
 
-module.exports = { main, loadPlan, validatePlan, validatePackage, validateDevice, install, createTransport, APP_ID, VERSION, ROLLBACK_VERSION, EXPECTED_DEVICE, PLAN_PATH, IPK_PATH, ROLLBACK_PATH, INSTALLED_ROOT };
+module.exports = { main, loadPlan, validatePlan, validatePackage, validateDevice, install, createTransport, APP_ID, VERSION, ROLLBACK_VERSION, ROLLBACK_ALLOWLIST, EXPECTED_DEVICE, PLAN_PATH, IPK_PATH, ROLLBACK_PATH, INSTALLED_ROOT };
