@@ -1,6 +1,6 @@
 {
   "id": "org.lggate.launcher",
-  "version": "0.1.0",
+  "version": "0.1.4",
   "type": "web",
   "main": "index.html",
   "title": "LG Gate",

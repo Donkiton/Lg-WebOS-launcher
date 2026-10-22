@@ -9,6 +9,7 @@
   var storageKey = 'lg-home-prototype-v1';
   var settings = { motion: 'smooth', reflections: true, dim: false, hints: false };
   var platform = window.LauncherPlatform;
+  var wallpaperController = null;
   var homeState = window.LauncherHomeState;
   var favoritesKey = 'lg-home-favorites-v1-' + platform.mode;
   var catalogOrderKey = 'lg-home-catalog-order-v1-' + platform.mode;
@@ -19,6 +20,9 @@
   var favoritesReady = false;
   var apps = [];
   var catalogLoading = false;
+  var pendingShortcut = null;
+  var nativeLaunchSeen = false;
+  var coldShortcutConsumed = false;
   var catalogError = '';
   var queuedCatalog = null;
   var catalogStatus = { nativeComplete: false, msxComplete: false, iconsOnly: false };
@@ -177,6 +181,51 @@
     stage.style.transform = 'scale(' + scale + ')';
     stage.style.left = Math.round((window.innerWidth - 1920 * scale) / 2) + 'px';
     stage.style.top = Math.round((window.innerHeight - 1080 * scale) / 2) + 'px';
+  }
+  function setupWallpaper() {
+    var wallpaper = document.getElementById('wallpaper');
+    if (!wallpaper || !window.LauncherWallpaper || !(platform.getWallpaperRecord || platform.getPowerSession)) return;
+    var storage = null;
+    try { storage = window.localStorage || localStorage; } catch (ignoreStorage) { /* Optional persistence. */ }
+    wallpaperController = window.LauncherWallpaper.createController({
+      mode: platform.mode,
+      storage: storage,
+      initialRecord: platform.mode === 'webos' && window.LauncherWallpaper.early ? window.LauncherWallpaper.early.record : null,
+      now: function () { return new Date(); },
+      readSession: function () { return platform.getWallpaperRecord ? platform.getWallpaperRecord() : platform.getPowerSession(); },
+      loadImage: function (path) {
+        return new Promise(function (resolve, reject) {
+          var image = null;
+          var settled = false;
+          var stopListening = function () {};
+          var timer = window.setTimeout(function () { finish(new Error('Wallpaper load timed out')); }, 5000);
+          function finish(error) {
+            if (settled) return;
+            settled = true;
+            window.clearTimeout(timer);
+            stopListening();
+            if (image) { image.onload = null; image.onerror = null; }
+            if (error) reject(error); else resolve();
+          }
+          var early = window.LauncherWallpaper.early;
+          if (platform.mode === 'webos' && early && early.path === path) {
+            stopListening = early.listen(finish);
+            return;
+          }
+          image = new window.Image();
+          image.onload = function () { finish(); };
+          image.onerror = function () { finish(new Error('Wallpaper unavailable')); };
+          image.src = path;
+        });
+      },
+      apply: function (path) { wallpaper.style.backgroundImage = 'url("' + path + '")'; }
+    });
+  }
+  function refreshWallpaper(params) {
+    if (wallpaperController) {
+      var hint = platform.mode === 'webos' ? window.LauncherWallpaper.parseLaunchHint(params) : null;
+      wallpaperController.refresh(hint).catch(function () {});
+    }
   }
   function updateClock() {
     var now = new Date();
@@ -425,7 +474,7 @@
     lastHomeIndex = Math.max(0, Math.min(lastHomeIndex, homeApps().length - 1));
     saveHomeCache();
     updatePriorities();
-    if (meta.iconsOnly && previousStructure === catalogFingerprint(apps) && previousFavorites === favorites.join('\n')) { patchCardImages(); return; }
+    if (meta.iconsOnly && previousStructure === catalogFingerprint(apps) && previousFavorites === favorites.join('\n')) { patchCardImages(); tryPendingShortcut(); return; }
     var focused = document.activeElement ? document.activeElement.id : '';
     var focusedApp = document.activeElement && document.activeElement.getAttribute('data-app');
     renderHome();
@@ -435,6 +484,7 @@
       if (position >= 0) focusId('home-app-' + position);
       else if (!focusId(focused)) focusHome();
     }
+    tryPendingShortcut();
   }
   function acceptCatalog(catalog, meta) {
     // Keep our own metadata: platform.catalogStatus can change at the next
@@ -465,7 +515,54 @@
       catalogLoading = false;
       catalogError = 'Не удалось получить приложения: ' + error.message;
       if (view === 'apps' && !press && !enterDown && !pointerDown) updateCurrentView();
+      tryPendingShortcut();
     });
+  }
+  function shortcutFromParams(params) {
+    if (typeof params === 'string') {
+      if (params.length > 2048) return null;
+      try { params = JSON.parse(params); } catch (ignore) { return null; }
+    }
+    return params && typeof params === 'object' && !Array.isArray(params) && params.shortcut === 'zona' ? 'zona' : null;
+  }
+  function tryPendingShortcut() {
+    if (!pendingShortcut || view !== 'home' || press || enterDown || pointerDown) return;
+    // Reuse the active progressive catalog request. Starting another getApps()
+    // would cancel the first MSX source read and could discard the shortcut.
+    if (catalogLoading) return;
+    var target = null;
+    for (var i = 0; i < apps.length; i++) {
+      if (apps[i].brand === pendingShortcut) { target = apps[i]; break; }
+    }
+    pendingShortcut = null;
+    if (!target) { notify('Zona не найдена в текущем каталоге приложений.'); return; }
+    openView('launch', { appId: target.id });
+  }
+  function handleNativeLaunch(event, initial) {
+    if (platform.mode !== 'webos') return;
+    nativeLaunchSeen = true;
+    var shortcut = shortcutFromParams(event && event.detail);
+    // webOS may expose cold parameters before dispatching webOSLaunch.
+    // Consume that second delivery without reopening the same portal.
+    if (initial && coldShortcutConsumed && shortcut === 'zona') { coldShortcutConsumed = false; return; }
+    coldShortcutConsumed = false;
+    cancelActivation();
+    goHome();
+    if (shortcut) { pendingShortcut = shortcut; tryPendingShortcut(); }
+    refreshWallpaper(event && event.detail);
+  }
+  function handleColdLaunch() {
+    if (platform.mode !== 'webos' || nativeLaunchSeen) return;
+    var shortcut = null;
+    try {
+      var wallpaper = window.LauncherWallpaper;
+      shortcut = shortcutFromParams(wallpaper && wallpaper.initialParamsRead ? wallpaper.initialParams : window.PalmSystem && window.PalmSystem.launchParams);
+    }
+    catch (ignore) { /* A native launch event can still supply the parameters. */ }
+    if (!shortcut) return;
+    coldShortcutConsumed = true;
+    pendingShortcut = shortcut;
+    tryPendingShortcut();
   }
   function refreshNetwork() {
     return platform.getNetwork().then(function (status) {
@@ -479,6 +576,7 @@
     });
   }
   function openView(name, data) {
+    pendingShortcut = null;
     cancelPress();
     stack.push({ name: view, data: viewData, focus: document.activeElement ? document.activeElement.id : '', appId: document.activeElement && document.activeElement.getAttribute('data-app') });
     view = name;
@@ -522,6 +620,7 @@
     }
   }
   function closeView() {
+    pendingShortcut = null;
     if (view === 'home') return;
     cancelPress();
     if (view === 'apps' && viewData.manage) {
@@ -561,6 +660,7 @@
     flushCatalog();
   }
   function goHome() {
+    pendingShortcut = null;
     cancelPress();
     if (viewData && viewData.control) viewData.control.cancelled = true;
     ++viewRevision;
@@ -918,17 +1018,13 @@
     releasePress(closestButton(document.activeElement));
   });
   window.addEventListener('blur', cancelActivation);
-  document.addEventListener('webOSRelaunch', function () {
-    // Native Home relaunches this app. Always return to its home screen,
-    // releasing an embedded player or cancelling an unfinished edit draft.
-    cancelActivation();
-    goHome();
-  });
+  document.addEventListener('webOSLaunch', function (event) { handleNativeLaunch(event, true); });
+  document.addEventListener('webOSRelaunch', function (event) { handleNativeLaunch(event, false); });
   document.addEventListener('visibilitychange', function () {
     if (document.hidden) cancelActivation();
-    else { loadApps(false); refreshNetwork().catch(function () {}); }
+    else { loadApps(false); refreshNetwork().catch(function () {}); refreshWallpaper(); }
   });
-  window.addEventListener('focus', function () { loadApps(false); refreshNetwork().catch(function () {}); });
+  window.addEventListener('focus', function () { loadApps(false); refreshNetwork().catch(function () {}); refreshWallpaper(); });
   window.addEventListener('resize', fitStage);
   document.addEventListener('visibilitychange', function () { if (document.hidden) stopClock(); else syncClock(); });
   document.addEventListener('webOSRelaunch', syncClock);
@@ -941,11 +1037,14 @@
     if (platform.getCachedHome) apps = platform.getCachedHome(favorites);
   }
   applySettings();
+  setupWallpaper();
+  refreshWallpaper();
   renderHome();
   fitStage();
   syncClock(true);
   focusHome();
   updatePriorities();
   loadApps(true);
+  handleColdLaunch();
   refreshNetwork().catch(function () {});
 }());

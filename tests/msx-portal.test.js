@@ -36,9 +36,10 @@ function harness(launchApp) {
     stage: { classList: classes }, window: { LauncherMSXCatalog: msx, setTimeout(fn) { fn(); } },
     platform: { launchApp, mode: 'webos' },
     view: 'home', viewData: null, stack: [], viewRevision: 0, lastHomeIndex: 0,
+    pendingShortcut: null, nativeLaunchSeen: false, coldShortcutConsumed: false,
     enterDown: false, pointerDown: false, pointerConsumed: false, suppressClickUntil: 0,
     findApp() { return { id: 'msx:real', name: 'Приложение <MSX>', brand: 'zona' }; },
-    cancelPress() {}, focusId() { return true; }, focusHome() {}, updatePriorities() {}, homeCardIndex() { return 0; }, flushCatalog() {}, loadApps() {},
+    cancelPress() {}, focusId() { return true; }, focusHome() {}, updatePriorities() {}, homeCardIndex() { return 0; }, flushCatalog() {}, loadApps() {}, refreshWallpaper() {},
     brand() { return ''; }, theme() { return 'zona'; },
     catalogIndex() { return 0; }, favorites: ['msx:real'],
     updateCurrentView() {}, Promise
@@ -46,6 +47,7 @@ function harness(launchApp) {
   vm.runInContext([
     region('  function escapeHtml(value)', '  function theme(app)'),
     region('  function renderView(name, data)', '  function detailRow('),
+    region('  function shortcutFromParams(params)', '  function refreshNetwork()'),
     region('  function openView(name, data)', '  function openContext('),
     region('  function cancelActivation()', "  stage.addEventListener('click'"),
     region("  document.addEventListener('webOSRelaunch'", "  document.addEventListener('visibilitychange'")

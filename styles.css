@@ -15,7 +15,7 @@ button:focus { outline: none; }
 [hidden] { display: none !important; }
 .stage { position: absolute; width: 1920px; height: 1080px; overflow: hidden; color: var(--text); transform-origin: 0 0; background: #07111e; }
 .wallpaper, .wallpaper-shade, .home-view, .overlay { position: absolute; top: 0; right: 0; bottom: 0; left: 0; }
-.wallpaper { background: #07111e url("assets/mountain-sunset.png") center center / cover no-repeat; }
+.wallpaper { background: #07111e center center / cover no-repeat; }
 .wallpaper-shade { background: linear-gradient(180deg, rgba(0,8,18,.06) 25%, rgba(0,5,13,.12) 58%, rgba(0,5,13,.34) 100%); transition: opacity var(--motion); }
 .stage.is-dimmed .wallpaper-shade { background: rgba(0,5,13,.4); }
 .home-view { transition: opacity var(--motion), transform var(--motion) var(--ease); }
