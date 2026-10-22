@@ -1,1 +1,5 @@
 e67a51c05160cfab881456924da94fa68db5c01baa56fe43f963383a0869da3e  org.lggate.launcher_0.1.0_all.ipk
+140601153e85327b21a11995def28d8c66f117fe76835324539455b715b3d3e4  org.lggate.launcher_0.1.1_all.ipk
+4db1989df44bc8c3dd84fef014f960bad3395e0908edb5fc49445275c054cfe0  org.lggate.launcher_0.1.2_all.ipk
+e4fd5f26ce0d8d73b6ff764011e964dd2136bae4621a2a304854a4864f5fe6cd  org.lggate.launcher_0.1.3_all.ipk
+0d29665baf241038312ea44237181d261e15613d9c52eb29ce68256c1783f1f1  org.lggate.launcher_0.1.4_all.ipk

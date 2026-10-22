@@ -16,11 +16,12 @@ const CLI_STATE_DIRECTORY = path.join(PROJECT_ROOT, '.build', 'cli-state');
 const CLI_TEMP_DIRECTORY = path.join(PROJECT_ROOT, '.build', 'cli-temp');
 const CLI_VERSION = '3.2.6';
 const ALLOWLIST = Object.freeze([
-  'appinfo.json', 'index.html', 'portal.html', 'app.js', 'msx-catalog.js', 'platform.js', 'home-state.js', 'styles.css',
+  'appinfo.json', 'index.html', 'portal.html', 'app.js', 'msx-catalog.js', 'platform.js', 'wallpaper.js', 'home-state.js', 'styles.css',
+  'assets/wallpapers/morning.png', 'assets/wallpapers/day.png', 'assets/wallpapers/night.png',
   'assets/mountain-sunset.png', 'assets/app-icon.png', 'assets/app-icon-large.png'
 ]);
 const MANIFEST = Object.freeze({
-  id: 'org.lggate.launcher', version: '0.1.0', type: 'web', main: 'index.html', title: 'LG Gate',
+  id: 'org.lggate.launcher', version: '0.1.4', type: 'web', main: 'index.html', title: 'LG Gate',
   icon: 'assets/app-icon.png', largeIcon: 'assets/app-icon-large.png', iconColor: '#0b1726',
   resolution: '1920x1080', disableBackHistoryAPI: true, handlesRelaunch: false, transparent: false
 });
@@ -129,7 +130,7 @@ function stageFiles() {
       const relative = prefix + entry.name;
       if (entry.isSymbolicLink()) throw new Error('Staging не должен содержать ссылки.');
       if (entry.isDirectory()) {
-        if (relative !== 'assets') throw new Error('Лишняя папка в staging сохранена без удаления: ' + relative);
+        if (relative !== 'assets' && relative !== 'assets/wallpapers') throw new Error('Лишняя папка в staging сохранена без удаления: ' + relative);
         walk(path.join(directory, entry.name), relative + '/');
       } else if (entry.isFile()) result.push(relative);
       else throw new Error('Неподдерживаемый тип файла в staging.');

@@ -192,6 +192,8 @@
     var msxVerifiedSession = '';
     var msxFlight = null;
     var msxRetry = null;
+    var powerSessionFlight = null;
+    var previewSession = '';
     var now = env.Date && typeof env.Date.now === 'function' ? function () { return env.Date.now(); } : function () { return Date.now(); };
     var timeoutMs = typeof configuration.timeoutMs === 'number' && configuration.timeoutMs > 0 ? configuration.timeoutMs : 5000;
     var homeCacheKey = HOME_CACHE_PREFIX + mode;
@@ -366,23 +368,48 @@
         (parts[0] === 'wake' && parts.length === 3 && validBootId(parts[1]) && /^[0-9a-f]{24}$/.test(parts[2]));
     }
 
-    function readMSXSession() {
-      return lunaCall(SERVICES.homebrew, { command: SESSION_COMMAND }).then(function (payload) {
+    function readPowerRecord() {
+      if (powerSessionFlight) return powerSessionFlight;
+      powerSessionFlight = lunaCall(SERVICES.homebrew, { command: SESSION_COMMAND }).then(function (payload) {
         var output = payload.stdoutString;
-        if (typeof output !== 'string' || output.length > 600) return '';
+        if (typeof output !== 'string' || output.length > 600) return { session: '', awakeSession: '', wallpaperPeriod: null };
         var split = output.lastIndexOf('\n', output.length - (output.slice(-1) === '\n' ? 2 : 1));
         var bootId = text(output.substr(split + 1));
-        if (!validBootId(bootId)) return '';
+        if (!validBootId(bootId)) return { session: '', awakeSession: '', wallpaperPeriod: null };
         var marker = null;
         try { marker = JSON.parse(output.substr(0, split)); } catch (invalidMarker) { /* Boot-scoped fallback before daemon installation. */ }
         if (marker && marker.version === 1 && marker.bootId === bootId && typeof marker.sessionId === 'string' && /^[0-9a-f]{24}$/.test(marker.sessionId)) {
-          return 'wake:' + bootId + ':' + marker.sessionId;
+          var session = 'wake:' + bootId + ':' + marker.sessionId;
+          var wallpaperPeriod = typeof marker.wallpaperPeriod === 'string' && /^(morning|day|evening|night)$/.test(marker.wallpaperPeriod) ? marker.wallpaperPeriod : null;
+          return { session: session, awakeSession: marker.sleeping === false ? session : '', wallpaperPeriod: wallpaperPeriod };
         }
-        return 'boot:' + bootId;
+        return { session: 'boot:' + bootId, awakeSession: '', wallpaperPeriod: null };
       }).catch(function (failure) {
         if (failure.code === 'CANCELLED') throw failure;
-        return '';  // An unavailable optional marker must not hide native apps.
+        return { session: '', awakeSession: '', wallpaperPeriod: null };  // Optional marker failure never hides native apps.
       });
+      var flight = powerSessionFlight;
+      function settled() { if (powerSessionFlight === flight) powerSessionFlight = null; }
+      flight.then(settled, settled);
+      return flight;
+    }
+
+    function readMSXSession() {
+      return readPowerRecord().then(function (record) { return record.session; });
+    }
+
+    function readPreviewSession() {
+      if (previewSession) return previewSession;
+      var key = 'lg-gate-preview-session-v1';
+      try {
+        var saved = env.sessionStorage && env.sessionStorage.getItem(key);
+        if (typeof saved === 'string' && /^preview:[a-z0-9:-]{1,90}$/.test(saved)) previewSession = saved;
+      } catch (ignoreRead) { /* Private browsing may block sessionStorage. */ }
+      if (!previewSession) {
+        previewSession = 'preview:' + now().toString(36) + ':' + Math.random().toString(36).substr(2, 16);
+        try { if (env.sessionStorage) env.sessionStorage.setItem(key, previewSession); } catch (ignoreWrite) { /* This renderer still has a stable preview session. */ }
+      }
+      return previewSession;
     }
 
     function clearMSXRetry() {
@@ -738,6 +765,17 @@
       mode: mode,
       catalogSource: mode === 'browser' ? 'tv-snapshot' : 'webos',
       catalogStatus: { nativeComplete: false, msxComplete: false, iconsOnly: false },
+      getPowerSession: function () {
+        // Missing or sleeping marker is not evidence of a new wallpaper session.
+        // MSX retains its historical boot-scoped fallback independently.
+        return mode === 'browser' ? PromiseClass.resolve(readPreviewSession()) : readPowerRecord().then(function (record) { return record.awakeSession; });
+      },
+      getWallpaperRecord: function () {
+        if (mode === 'browser') return PromiseClass.resolve({ version: 1, session: readPreviewSession(), period: null });
+        return readPowerRecord().then(function (record) {
+          return record.awakeSession ? { version: 1, session: record.awakeSession, period: record.wallpaperPeriod } : null;
+        });
+      },
       getCachedHome: getCachedHome,
       saveHomeCache: saveHomeCache,
       setAppPriorities: function (homeIds, visibleIds) {
