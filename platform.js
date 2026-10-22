@@ -372,21 +372,20 @@
       if (powerSessionFlight) return powerSessionFlight;
       powerSessionFlight = lunaCall(SERVICES.homebrew, { command: SESSION_COMMAND }).then(function (payload) {
         var output = payload.stdoutString;
-        if (typeof output !== 'string' || output.length > 600) return { session: '', awakeSession: '', wallpaperPeriod: null };
+        if (typeof output !== 'string' || output.length > 600) return { session: '', awakeSession: '' };
         var split = output.lastIndexOf('\n', output.length - (output.slice(-1) === '\n' ? 2 : 1));
         var bootId = text(output.substr(split + 1));
-        if (!validBootId(bootId)) return { session: '', awakeSession: '', wallpaperPeriod: null };
+        if (!validBootId(bootId)) return { session: '', awakeSession: '' };
         var marker = null;
         try { marker = JSON.parse(output.substr(0, split)); } catch (invalidMarker) { /* Boot-scoped fallback before daemon installation. */ }
         if (marker && marker.version === 1 && marker.bootId === bootId && typeof marker.sessionId === 'string' && /^[0-9a-f]{24}$/.test(marker.sessionId)) {
           var session = 'wake:' + bootId + ':' + marker.sessionId;
-          var wallpaperPeriod = typeof marker.wallpaperPeriod === 'string' && /^(morning|day|evening|night)$/.test(marker.wallpaperPeriod) ? marker.wallpaperPeriod : null;
-          return { session: session, awakeSession: marker.sleeping === false ? session : '', wallpaperPeriod: wallpaperPeriod };
+          return { session: session, awakeSession: marker.sleeping === false ? session : '' };
         }
-        return { session: 'boot:' + bootId, awakeSession: '', wallpaperPeriod: null };
+        return { session: 'boot:' + bootId, awakeSession: '' };
       }).catch(function (failure) {
         if (failure.code === 'CANCELLED') throw failure;
-        return { session: '', awakeSession: '', wallpaperPeriod: null };  // Optional marker failure never hides native apps.
+        return { session: '', awakeSession: '' };  // Optional marker failure never hides native apps.
       });
       var flight = powerSessionFlight;
       function settled() { if (powerSessionFlight === flight) powerSessionFlight = null; }
@@ -766,15 +765,9 @@
       catalogSource: mode === 'browser' ? 'tv-snapshot' : 'webos',
       catalogStatus: { nativeComplete: false, msxComplete: false, iconsOnly: false },
       getPowerSession: function () {
-        // Missing or sleeping marker is not evidence of a new wallpaper session.
+        // Only an awake marker identifies the currently active power session.
         // MSX retains its historical boot-scoped fallback independently.
         return mode === 'browser' ? PromiseClass.resolve(readPreviewSession()) : readPowerRecord().then(function (record) { return record.awakeSession; });
-      },
-      getWallpaperRecord: function () {
-        if (mode === 'browser') return PromiseClass.resolve({ version: 1, session: readPreviewSession(), period: null });
-        return readPowerRecord().then(function (record) {
-          return record.awakeSession ? { version: 1, session: record.awakeSession, period: record.wallpaperPeriod } : null;
-        });
       },
       getCachedHome: getCachedHome,
       saveHomeCache: saveHomeCache,
@@ -844,6 +837,14 @@
       },
       launchApp: launch,
       openSettings: function () { return launch('com.palm.app.settings'); },
+      openWifiSettings: function () {
+        if (mode === 'browser') return PromiseClass.resolve({ simulated: true });
+        // The installed LG settings app maps WifiConnection to Network/Wifi.
+        // Let webOS handle network selection and credentials in its own UI.
+        return lunaCall(SERVICES.launch, {
+          id: 'com.palm.app.settings', params: { target: 'WifiConnection' }
+        }).then(function () { return { simulated: false }; });
+      },
       switchInput: function (id, control) {
         if (!validId(id)) return PromiseClass.reject(error('INVALID_ID', 'Не указан идентификатор входа.'));
         if (control && control.cancelled === true) return PromiseClass.reject(error('CANCELLED', 'Переключение входа отменено.'));

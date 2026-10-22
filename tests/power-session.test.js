@@ -28,7 +28,7 @@ test('Сеанс питания доступен независимо от ус�
   answer(h.calls[1], { version: 1, bootId: BOOT, sessionId: '222222222222222222222222', sleeping: false });
   assert.equal(await c, 'wake:' + BOOT + ':222222222222222222222222');
 });
-test('Повреждённый marker и ошибка службы не создают выдуманный новый сеанс фона', async () => {
+test('Повреждённый marker и ошибка службы не создают выдуманный активный сеанс', async () => {
   const h = tv();
   const a = h.platform.getPowerSession();
   answer(h.calls[0], { version: 1, bootId: 'other', sessionId: WAKE });
@@ -40,7 +40,7 @@ test('Повреждённый marker и ошибка службы не созд
   answer(h.calls[2]);
   assert.equal(await c, 'wake:' + BOOT + ':' + WAKE);
 });
-test('Спящий marker и marker без состояния awake не разрешают смену фона', async () => {
+test('Спящий marker и marker без состояния awake не считаются активным сеансом', async () => {
   const h = tv();
   for (const marker of [{ version: 1, bootId: BOOT, sessionId: WAKE, sleeping: true }, { version: 1, bootId: BOOT, sessionId: WAKE }]) {
     const request = h.platform.getPowerSession();
@@ -73,34 +73,17 @@ test('Запрет sessionStorage не мешает стабильному се�
   assert.equal(await p.getPowerSession(), await p.getPowerSession());
 });
 
-test('Wallpaper record и MSX token разделяют чтение, период возвращается из awake marker', async () => {
+test('Старый wallpaperPeriod в marker игнорируется и не меняет MSX-сеанс', async () => {
   const h = tv();
-  const record = h.platform.getWallpaperRecord(), token = h.platform.getPowerSession();
-  assert.equal(h.calls.length, 1);
-  answer(h.calls[0], { version: 1, bootId: BOOT, sessionId: WAKE, sleeping: false, wallpaperPeriod: 'morning' });
-  assert.deepEqual(await record, { version: 1, session: 'wake:' + BOOT + ':' + WAKE, period: 'morning' });
-  assert.equal(await token, 'wake:' + BOOT + ':' + WAKE);
-});
-
-test('Legacy и неправильный период не становятся произвольным путем; sleeping marker не считается awake', async () => {
-  const h = tv();
-  for (const period of [undefined, null, '__proto__', 'https://evil.example/a.png', ['morning']]) {
-    const request = h.platform.getWallpaperRecord();
+  for (const period of [undefined, null, 'night', '__proto__', 'https://evil.example/a.png', ['morning']]) {
+    const request = h.platform.getPowerSession();
     answer(h.calls[h.calls.length - 1], { version: 1, bootId: BOOT, sessionId: WAKE, sleeping: false, wallpaperPeriod: period });
-    assert.deepEqual(await request, { version: 1, session: 'wake:' + BOOT + ':' + WAKE, period: null });
+    assert.equal(await request, 'wake:' + BOOT + ':' + WAKE);
   }
-  const sleeping = h.platform.getWallpaperRecord();
+  const sleeping = h.platform.getPowerSession();
   answer(h.calls[h.calls.length - 1], { version: 1, bootId: BOOT, sessionId: WAKE, sleeping: true, wallpaperPeriod: 'night' });
-  assert.equal(await sleeping, null);
-  const broken = h.platform.getWallpaperRecord();
+  assert.equal(await sleeping, '');
+  const broken = h.platform.getPowerSession();
   answer(h.calls[h.calls.length - 1], { version: 1, bootId: 'other', sessionId: WAKE, sleeping: false, wallpaperPeriod: 'night' });
-  assert.equal(await broken, null);
-});
-
-test('Browser record сохраняет preview session без native периода', async () => {
-  const p = createPlatform({});
-  const record = await p.getWallpaperRecord();
-  assert.equal(record.version, 1);
-  assert.equal(record.period, null);
-  assert.equal(record.session, await p.getPowerSession());
+  assert.equal(await broken, '');
 });

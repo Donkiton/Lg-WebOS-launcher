@@ -65,6 +65,7 @@ test('Браузер получает реальные ID и названия и
   assert.deepEqual(await platform.getInputs(), []);
   assert.deepEqual(await platform.launchApp('youtube'), { simulated: true });
   assert.deepEqual(await platform.openSettings(), { simulated: true });
+  assert.deepEqual(await platform.openWifiSettings(), { simulated: true });
   assert.deepEqual(await platform.switchInput('preview-input'), { simulated: true });
 });
 
@@ -137,6 +138,33 @@ test('launch/settings pass exact IDs and structured parameters', async () => {
   ]);
   await assert.rejects(platform.launchApp(''), { code: 'INVALID_ID' });
   assert.equal(fake.calls.length, 2);
+});
+
+test('Wi-Fi shortcut opens the native network chooser without network management or root calls', async () => {
+  const fake = fakeEnvironment(call => answer(call, { returnValue: true }));
+  assert.deepEqual(await createPlatform(fake.env).openWifiSettings(), { simulated: false });
+  assert.deepEqual(fake.calls.map(({ uri, params }) => ({ uri, params })), [
+    { uri: URI.launch, params: { id: 'com.palm.app.settings', params: { target: 'WifiConnection' } } }
+  ]);
+});
+
+test('Wi-Fi launch failure stays visible to the caller without silently opening another screen', async () => {
+  const fake = fakeEnvironment(call => answer(call, { returnValue: false, errorCode: -103, errorText: 'Permission denied' }));
+  await assert.rejects(createPlatform(fake.env).openWifiSettings(), { code: 'SERVICE_ERROR', serviceCode: -103 });
+  assert.equal(fake.calls.length, 1);
+  assert.equal(fake.bridges[0].cancelled, 1);
+});
+
+test('Cancelled Wi-Fi launch ignores late native replies', async () => {
+  const fake = fakeEnvironment();
+  const platform = createPlatform(fake.env);
+  const request = platform.openWifiSettings();
+  const callback = fake.bridges[0].onservicecallback;
+  platform.cancelPending();
+  callback(JSON.stringify({ returnValue: true }));
+  await assert.rejects(request, { code: 'CANCELLED' });
+  assert.equal(fake.calls.length, 1);
+  assert.equal(fake.bridges[0].onservicecallback, null);
 });
 
 test('network distinguishes Wi-Fi, cable, disconnected and unknown values', async () => {

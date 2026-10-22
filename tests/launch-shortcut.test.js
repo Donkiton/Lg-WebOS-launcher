@@ -11,7 +11,7 @@ const source = fs.readFileSync(path.join(__dirname, '..', 'app.js'), 'utf8');
 // Exercise production bootstrap, catalog callbacks, native lifecycle and Back.
 // The fixture supplies DOM/platform primitives without contacting a television.
 function harness(options = {}) {
-  const writes = [], cachedWrites = [], priorities = [], frames = [], requested = [], launches = [];
+  const writes = [], cachedWrites = [], priorities = [], frames = [], requested = [], launches = [], settingsCalls = [];
   const storage = new Map();
   if (options.favorites !== undefined) storage.set('lg-home-favorites-v1-webos', JSON.stringify(options.favorites));
   if (options.order) storage.set('lg-home-catalog-order-v1-webos', JSON.stringify(options.order));
@@ -101,11 +101,13 @@ function harness(options = {}) {
       frames.push(rail.innerHTML);
       return new Promise((resolve, reject) => { resolveRequest = resolve; rejectRequest = reject; });
     },
-    getNetwork() { return Promise.resolve({ available: true, kind: 'wifi', connected: true }); },
+    getNetwork() { return options.getNetwork ? options.getNetwork() : Promise.resolve({ available: true, kind: 'wifi', connected: true }); },
+    openWifiSettings() { settingsCalls.push('wifi'); return options.openWifiSettings ? options.openWifiSettings() : Promise.resolve({ simulated: options.mode === 'browser' }); },
+    openSettings() { settingsCalls.push('general'); return options.openSettings ? options.openSettings() : Promise.resolve({ simulated: options.mode === 'browser' }); },
     launchApp(id) { launches.push(id); return options.launchApp ? options.launchApp(id) : Promise.resolve({ embedded: true, url: 'https://catalog.example/current-zona' }); }
   };
   const window = element('window');
-  Object.assign(window, { LauncherPlatform: platform, LauncherHomeState: homeState, LauncherMSXCatalog: require('../msx-catalog'), PalmSystem: { launchParams: options.launchParams }, innerWidth: 1920, innerHeight: 1080, setTimeout() { return 1; }, clearTimeout() {}, setInterval() {} });
+  Object.assign(window, { LauncherPlatform: platform, LauncherHomeState: homeState, LauncherWallpaper: require('../wallpaper'), LauncherMSXCatalog: require('../msx-catalog'), PalmSystem: { launchParams: options.launchParams }, innerWidth: 1920, innerHeight: 1080, setTimeout() { return 1; }, clearTimeout() {}, setInterval() {} });
   const context = vm.createContext({
     window, document, Promise, console,
     localStorage: {
@@ -115,7 +117,7 @@ function harness(options = {}) {
   });
   vm.runInContext(source, context, { filename: 'app.js' });
   return {
-    document, rail, overlay, frames, requested, priorities, cachedWrites, storage, writes, launches,
+    document, rail, overlay, frames, requested, priorities, cachedWrites, storage, writes, launches, settingsCalls,
     buttons() { return rail.querySelectorAll('button'); },
     homeIds() { return this.buttons().map(node => node.getAttribute('data-app')); },
     focus(id) { const button = document.getElementById(id); assert.ok(button, id); button.focus(); return button; },
@@ -129,7 +131,8 @@ function harness(options = {}) {
     resolve(catalog, meta) { platform.catalogStatus = meta; resolveRequest(catalog); },
     reject(error = Error('offline')) { rejectRequest(error); },
     relaunch(detail) { for (const fn of document.listeners.webOSRelaunch || []) fn({ detail }); },
-    launch(detail) { for (const fn of document.listeners.webOSLaunch || []) fn({ detail }); }
+    launch(detail) { for (const fn of document.listeners.webOSLaunch || []) fn({ detail }); },
+    windowFocus() { for (const fn of window.listeners.focus || []) fn({}); }
   };
 }
 const zona = { id: 'msx:current-zona', name: 'Zona', brand: 'zona', source: 'msx' };
@@ -270,4 +273,94 @@ test('В браузерном предпросмотре native параметр
   h.resolve([zona], complete);
   await turn();
   assert.deepEqual(h.launches, []);
+});
+
+test('OK на Wi-Fi открывает выбор сетей даже при недоступном статусе и возвращает фокус', async () => {
+  let resolve;
+  const h = harness({
+    favorites: ['one'], cached: [{ id: 'one', name: 'One' }],
+    getNetwork: () => Promise.reject(Error('network status unavailable')),
+    openWifiSettings: () => new Promise(done => { resolve = done; })
+  });
+  await turn();
+  const before = new Map(h.storage);
+  h.focus('network-button');
+  h.key(13);
+  assert.deepEqual(h.settingsCalls, ['wifi']);
+  assert.match(h.overlay.innerHTML, /Открываем список сетей/);
+  assert.doesNotMatch(h.overlay.innerHTML, /Данные сети недоступны/);
+  resolve({ simulated: false });
+  await turn();
+  assert.equal(h.overlay.hidden, true);
+  assert.equal(h.document.activeElement.id, 'network-button');
+  assert.deepEqual(h.storage, before, 'opening Wi-Fi must preserve preferences');
+});
+
+test('Предпросмотр Wi-Fi объясняет выбор сети и не показывает имитацию реальных сетей', async () => {
+  const h = harness({ mode: 'browser' });
+  h.click('network-button');
+  await turn();
+  assert.deepEqual(h.settingsCalls, ['wifi']);
+  assert.match(h.overlay.innerHTML, /Выберите сеть и введите пароль/);
+  assert.equal(h.document.getElementById('network-settings'), null);
+  h.key(461);
+  assert.equal(h.overlay.hidden, true);
+  assert.equal(h.document.activeElement.id, 'network-button');
+});
+
+test('Ошибка Wi-Fi предлагает явный переход в настройки LG с сохранением фокуса', async () => {
+  const h = harness({ openWifiSettings: () => Promise.reject(Error('<denied>')) });
+  h.click('network-button');
+  await turn();
+  assert.match(h.overlay.innerHTML, /Не удалось открыть: &lt;denied&gt;/);
+  assert.ok(h.document.getElementById('network-settings'));
+  assert.deepEqual(h.settingsCalls, ['wifi'], 'fallback must wait for the user');
+  h.click('network-settings');
+  await turn();
+  assert.deepEqual(h.settingsCalls, ['wifi', 'general']);
+  assert.equal(h.overlay.hidden, true);
+  assert.equal(h.document.activeElement.id, 'network-button');
+});
+
+test('Back во время открытия Wi-Fi сохраняет последующую навигацию после позднего ответа', async () => {
+  let resolve;
+  const h = harness({ openWifiSettings: () => new Promise(done => { resolve = done; }) });
+  h.click('network-button');
+  h.key(461);
+  assert.equal(h.document.activeElement.id, 'network-button');
+  h.focus('all-apps-button');
+  h.key(13);
+  const catalog = h.overlay.innerHTML;
+  resolve({ simulated: false });
+  await turn();
+  assert.equal(h.overlay.hidden, false);
+  assert.equal(h.overlay.innerHTML, catalog);
+});
+
+test('Home во время открытия Wi-Fi не получает запоздалое сообщение об ошибке', async () => {
+  let reject;
+  const h = harness({ openWifiSettings: () => new Promise((done, fail) => { reject = fail; }) });
+  h.click('network-button');
+  h.key(36);
+  reject(Error('late failure'));
+  await turn();
+  assert.equal(h.overlay.hidden, true);
+  assert.equal(h.overlay.innerHTML, '');
+  assert.equal(h.document.getElementById('network-settings'), null);
+});
+
+test('После возврата из настроек обновляется статус сети и Wi-Fi можно открыть повторно', async () => {
+  let kind = 'wifi';
+  const h = harness({ getNetwork: () => Promise.resolve({ available: true, kind, connected: true }) });
+  h.click('network-button');
+  await turn();
+  assert.equal(h.document.activeElement.id, 'network-button');
+  kind = 'wired';
+  h.windowFocus();
+  await turn();
+  assert.match(h.document.getElementById('network-button').getAttribute('aria-label'), /Сети Wi-Fi.*кабель/);
+  assert.equal(h.document.activeElement.id, 'network-button');
+  h.key(13);
+  await turn();
+  assert.deepEqual(h.settingsCalls, ['wifi', 'wifi']);
 });

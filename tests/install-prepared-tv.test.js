@@ -30,8 +30,8 @@ function tar(entries) {
   return Buffer.concat(blocks.concat([Buffer.alloc(1024)]));
 }
 
-function ipk(version = updater.VERSION, extraData = []) {
-  const entries = ALLOWLIST.map(filename => [filename, filename === 'appinfo.json' ? Buffer.from(JSON.stringify({ ...MANIFEST, version })) : Buffer.from('Prepared contents: ' + filename)]);
+function ipk(version = updater.VERSION, extraData = [], filenames = version === updater.ROLLBACK_VERSION ? updater.ROLLBACK_ALLOWLIST : ALLOWLIST) {
+  const entries = filenames.map(filename => [filename, filename === 'appinfo.json' ? Buffer.from(JSON.stringify({ ...MANIFEST, version })) : Buffer.from('Prepared contents: ' + filename)]);
   const prefix = 'usr/palm/applications/' + updater.APP_ID + '/';
   const data = entries.map(([filename, contents]) => [prefix + filename, contents]);
   data.push(['usr/palm/packages/' + updater.APP_ID + '/packageinfo.json', Buffer.from(JSON.stringify({ id: updater.APP_ID, app: updater.APP_ID, version }))]);
@@ -57,11 +57,11 @@ function fixture(t) {
     if (path.dirname(resolved) !== fs.realpathSync(os.tmpdir()) || !path.basename(resolved).startsWith('lg-gate-prepared-')) throw Error('Unsafe fixture cleanup');
     fs.rmSync(resolved, { recursive: true, force: true });
   });
-  const ready = ipk(), rollback = ipk('0.1.3');
+  const ready = ipk(), rollback = ipk(updater.ROLLBACK_VERSION);
   const plan = {
     schema: 1, appId: updater.APP_ID, version: updater.VERSION, ipk: updater.IPK_PATH,
     sha256: hash(ready.bytes), files: ready.files,
-    rollback: { ipk: updater.ROLLBACK_PATH, sha256: hash(rollback.bytes) }, expectedDevice: { ...updater.EXPECTED_DEVICE }
+    rollback: { ipk: updater.ROLLBACK_PATH, sha256: hash(rollback.bytes), files: rollback.files }, expectedDevice: { ...updater.EXPECTED_DEVICE }
   };
   for (const [filename, bytes] of [[plan.ipk, ready.bytes], [plan.rollback.ipk, rollback.bytes], [updater.PLAN_PATH, Buffer.from(JSON.stringify(plan))]]) {
     fs.mkdirSync(path.dirname(path.join(root, filename)), { recursive: true });
@@ -74,7 +74,7 @@ function device() {
   const bootId = '12345678-1234-5678-90ab-1234567890ab';
   return {
     uid: '0', system: { returnValue: true, modelName: '55SM8200PLA', sdkVersion: '4.10.0', firmwareVersion: '05.40.97' },
-    app: { returnValue: true, appInfo: { id: updater.APP_ID, title: 'LG Gate', version: '0.1.0' } },
+    app: { returnValue: true, appInfo: { id: updater.APP_ID, title: 'LG Gate', version: '0.1.5' } },
     homebrew: { returnValue: true, appInfo: { id: 'org.webosbrew.hbchannel', version: '0.7.3' } },
     bootId, session: { version: 1, bootId, sessionId: '11223344556677889900aabb', sleeping: false }
   };
@@ -105,20 +105,79 @@ test('Импорт установщика не создаёт ни transport, н
   assert.equal(processes, 0);
 });
 
+test('План 0.1.6 строго отделён от wifi-handoff, а резерв 0.1.5 содержит прежние 15 файлов', t => {
+  const f = fixture(t);
+  const previous = [
+    'appinfo.json', 'index.html', 'portal.html', 'app.js', 'msx-catalog.js', 'platform.js', 'wallpaper.js', 'home-state.js', 'styles.css',
+    'assets/wallpapers/morning.png', 'assets/wallpapers/day.png', 'assets/wallpapers/night.png',
+    'assets/mountain-sunset.png', 'assets/app-icon.png', 'assets/app-icon-large.png'
+  ];
+  assert.equal(updater.VERSION, '0.1.6');
+  assert.equal(updater.ROLLBACK_VERSION, '0.1.5');
+  assert.equal(updater.PLAN_PATH, '.build/manual-wallpaper-handoff/install-plan.json');
+  assert.equal(updater.IPK_PATH, '.build/manual-wallpaper-handoff/org.lggate.launcher_0.1.6_all.ipk');
+  assert.equal(updater.ROLLBACK_PATH, '.build/manual-wallpaper-handoff/rollback/org.lggate.launcher_0.1.5_all.ipk');
+  assert.deepEqual(updater.ROLLBACK_ALLOWLIST, previous);
+  assert.equal(Object.isFrozen(updater.ROLLBACK_ALLOWLIST), true);
+  assert.deepEqual(ALLOWLIST.filter(filename => !previous.includes(filename)), ['assets/wallpapers/northern-lake.png']);
+  assert.equal(ALLOWLIST.length, 16);
+  assert.deepEqual(updater.validatePackage(f.ready.bytes).map(entry => entry.path), ALLOWLIST);
+  assert.deepEqual(updater.validatePackage(f.rollback.bytes, undefined, updater.ROLLBACK_VERSION).map(entry => entry.path), previous);
+  assert.equal(updater.validatePlan(f.plan, { root: f.root }).files.length, 16);
+});
+
+test('Нельзя смешать составы 16 и 15 файлов ни в плане, ни в архиве, даже с новыми digest', async t => {
+  const f = fixture(t);
+  let created = 0;
+  for (const mutate of [
+    p => { p.files = clone(p.rollback.files); },
+    p => { p.rollback.files = clone(p.files); },
+    p => { p.rollback.files[0].path = 'assets/wallpapers/northern-lake.png'; },
+    p => { p.files[0].path = 'assets/wallpapers/unapproved.png'; }
+  ]) {
+    const plan = clone(f.plan); mutate(plan);
+    await assert.rejects(updater.main(['--execute', '--tv-free'], { root: f.root, loadPlan: () => plan, createTransport: () => { created++; } }));
+  }
+  for (const rollback of [false, true]) {
+    const version = rollback ? updater.ROLLBACK_VERSION : updater.VERSION;
+    const changed = ipk(version, [], rollback ? ALLOWLIST : updater.ROLLBACK_ALLOWLIST);
+    const plan = clone(f.plan), target = rollback ? plan.rollback : plan;
+    target.files = changed.files; target.sha256 = hash(changed.bytes);
+    fs.writeFileSync(path.join(f.root, target.ipk), changed.bytes);
+    await assert.rejects(updater.main(['--execute', '--tv-free'], { root: f.root, loadPlan: () => plan, createTransport: () => { created++; } }));
+    assert.throws(() => updater.validatePackage(changed.bytes, undefined, version));
+    fs.writeFileSync(path.join(f.root, target.ipk), rollback ? f.rollback.bytes : f.ready.bytes);
+  }
+  assert.equal(created, 0);
+});
+
 test('Без флагов и с --dry-run выполняется только полная локальная проверка', async t => {
   const f = fixture(t);
   let created = 0;
   for (const args of [[], ['--dry-run']]) {
     const result = await updater.main(args, { root: f.root, loadPlan: () => f.plan, createTransport: () => { created++; throw Error('network prohibited'); } });
-    assert.equal(result.mode, 'dry-run'); assert.equal(result.ready, true); assert.equal(result.fileCount, 15);
+    assert.equal(result.mode, 'dry-run'); assert.equal(result.ready, true); assert.equal(result.fileCount, 16);
   }
   assert.equal(created, 0);
   assert.deepEqual(updater.loadPlan(f.root), f.plan);
 });
 
+test('Откат по умолчанию только локально проверяет резерв 0.1.5 и все 15 файлов', async t => {
+  const f = fixture(t);
+  let created = 0;
+  for (const args of [['--rollback'], ['--rollback', '--dry-run']]) {
+    const result = await updater.main(args, { root: f.root, createTransport: () => { created++; throw Error('network prohibited'); } });
+    assert.equal(result.mode, 'dry-run'); assert.equal(result.version, '0.1.5');
+    assert.equal(result.ipk, f.plan.rollback.ipk); assert.equal(result.sha256, f.plan.rollback.sha256);
+    assert.equal(result.fileCount, 15);
+    assert.equal(result.executeCommand, 'node scripts/install-prepared-tv.js --rollback --execute --tv-free');
+  }
+  assert.equal(created, 0);
+});
+
 test('Неполные, повторные и неизвестные флаги останавливаются до чтения плана/transport', async () => {
   let reads = 0, created = 0;
-  for (const args of [['--execute'], ['--tv-free'], ['install'], ['--execute', '--yes'], ['--execute', '--execute'], ['--dry-run', '--execute', '--tv-free'], ['--execute', '--tv-free', '--force']]) {
+  for (const args of [['--execute'], ['--tv-free'], ['install'], ['--execute', '--yes'], ['--execute', '--execute'], ['--dry-run', '--execute', '--tv-free'], ['--execute', '--tv-free', '--force'], ['--rollback', '--execute'], ['--rollback', '--tv-free'], ['--rollback', '--rollback'], ['--rollback', '--execute', '--tv-free', '--force']]) {
     await assert.rejects(updater.main(args, { loadPlan: () => { reads++; }, createTransport: () => { created++; } }), /Использование/);
   }
   assert.equal(reads, 0); assert.equal(created, 0);
@@ -133,6 +192,7 @@ test('Ошибочная schema, версия, устройство, путь, �
     p => { p.files[0].path = p.files[1].path; }, p => { p.files.pop(); }, p => { p.files[0].sha256 = 'z'.repeat(64); },
     p => { p.files[0].sha256 = '0'.repeat(64); }, p => { p.sha256 = '0'.repeat(64); }, p => { p.sha256 += '\n'; },
     p => { p.rollback.ipk = '.build/wallpaper-ready/../../old.ipk'; }, p => { p.rollback.sha256 = '0'.repeat(64); },
+    p => { p.rollback.files.pop(); }, p => { p.rollback.files[0].sha256 = '0'.repeat(64); },
     p => { p.extraTransportCommand = 'arbitrary'; }
   ];
   let created = 0;
@@ -165,6 +225,16 @@ test('Архив с лишним файлом или ссылкой не при�
     const changed = ipk(updater.VERSION, [extra]);
     fs.writeFileSync(path.join(f.root, f.plan.ipk), changed.bytes);
     assert.throws(() => updater.validatePlan({ ...f.plan, sha256: hash(changed.bytes) }, { root: f.root }));
+  }
+});
+
+test('Резерв проверяется как IPK 0.1.5, а не просто существующий файл с верным digest', t => {
+  const f = fixture(t);
+  for (const bytes of [Buffer.from('not an ipk'), ipk('0.1.3').bytes, ipk(updater.VERSION).bytes,
+    ipk(updater.ROLLBACK_VERSION, [['unapproved-directory/', Buffer.alloc(0), '5']]).bytes]) {
+    fs.writeFileSync(path.join(f.root, f.plan.rollback.ipk), bytes);
+    const plan = clone(f.plan); plan.rollback.sha256 = hash(bytes);
+    assert.throws(() => updater.validatePlan(plan, { root: f.root }));
   }
 });
 
@@ -231,7 +301,28 @@ test('Явное выполнение соблюдает порядок prefligh
   assert.deepEqual(mock.names(), ['preflight', 'upload', 'sha256', 'install', 'verify', 'launch']);
   assert.equal(mock.calls[1].args[0], path.join(f.root, f.plan.ipk));
   assert.equal(mock.calls[1].args[1], '/tmp/lg-gate-update-' + updater.VERSION + '-' + f.plan.sha256.slice(0, 12) + '.ipk');
-  assert.equal(result.verified, true); assert.equal(result.launched, true); assert.equal(result.fileCount, 15);
+  assert.equal(result.verified, true); assert.equal(result.launched, true); assert.equal(result.fileCount, 16);
+  assert.equal(mock.calls[4].args[1], updater.VERSION);
+});
+
+test('Явный откат передаёт резерв 0.1.5, проверяет его версию и каждый SHA до launch', async t => {
+  const f = fixture(t), mock = transport(f.plan, {
+    sha256: async () => f.plan.rollback.sha256,
+    verify: async () => ({ app: { returnValue: true, appInfo: { id: updater.APP_ID, title: 'LG Gate', version: updater.ROLLBACK_VERSION } }, hashes: Object.fromEntries(f.plan.rollback.files.map(entry => [entry.path, entry.sha256])) })
+  });
+  const result = await updater.main(['--rollback', '--execute', '--tv-free'], { root: f.root, createTransport: () => mock.remote });
+  assert.deepEqual(mock.names(), ['preflight', 'upload', 'sha256', 'install', 'verify', 'launch']);
+  assert.equal(mock.calls[1].args[0], path.join(f.root, f.plan.rollback.ipk));
+  assert.equal(mock.calls[1].args[1], '/tmp/lg-gate-update-0.1.5-' + f.plan.rollback.sha256.slice(0, 12) + '.ipk');
+  assert.deepEqual(mock.calls[4].args[0], f.plan.rollback.files);
+  assert.equal(mock.calls[4].args[1], updater.ROLLBACK_VERSION);
+  assert.equal(result.rollback, true); assert.equal(result.version, '0.1.5'); assert.equal(result.verified, true); assert.equal(result.fileCount, 15);
+});
+
+test('Неточная версия после отката не допускает launch', async t => {
+  const f = fixture(t), mock = transport(f.plan, { sha256: async () => f.plan.rollback.sha256 });
+  await assert.rejects(updater.main(['--rollback', '--execute', '--tv-free'], { root: f.root, createTransport: () => mock.remote }), /версия/);
+  assert.deepEqual(mock.names(), ['preflight', 'upload', 'sha256', 'install', 'verify']);
 });
 
 test('Разрешённый timeout подписки требует независимой полной проверки перед launch', async t => {
@@ -289,6 +380,43 @@ test('Реальный адаптер с fake spawn использует точ�
   assert.ok(calls.every(call => !/reboot|defaultApps|startup-enabled|kill -|\/bin\/sh/.test(call.args.at(-1))));
 });
 
+test('Адаптер проверяет SHA по версии: 16 файлов обновления и 15 файлов отката', async () => {
+  for (const version of [updater.VERSION, updater.ROLLBACK_VERSION]) {
+    const files = ipk(version).files;
+    const calls = [];
+    const adapter = updater.createTransport({ spawn(executable, args) {
+      calls.push({ executable, args });
+      const child = new EventEmitter(); child.stdout = new EventEmitter(); child.stderr = new EventEmitter(); child.stdin = { destroy() {} }; child.kill = () => {};
+      process.nextTick(() => {
+        const command = args.at(-1);
+        const stdout = command.includes('getAppInfo') ? JSON.stringify({ returnValue: true, appInfo: { id: updater.APP_ID, title: 'LG Gate', version } }) : files.map(entry => entry.sha256 + '  ' + updater.INSTALLED_ROOT + '/' + entry.path).join('\n');
+        child.stdout.emit('data', Buffer.from(stdout)); child.emit('close', 0);
+      });
+      return child;
+    } });
+    const result = await adapter.verify(files, version);
+    assert.equal(result.app.appInfo.version, version);
+    assert.deepEqual(result.hashes, Object.fromEntries(files.map(entry => [entry.path, entry.sha256])));
+    assert.equal(calls.length, 2);
+    assert.equal(calls.every(call => call.executable === 'ssh'), true);
+    const command = calls[1].args.at(-1);
+    assert.equal(command.includes('/assets/wallpapers/northern-lake.png'), version === updater.VERSION);
+    assert.equal(Object.keys(result.hashes).length, version === updater.VERSION ? 16 : 15);
+  }
+});
+
+test('Неизвестная версия и чужой состав проверки отклоняются адаптером до сетевого spawn', async () => {
+  let calls = 0;
+  const adapter = updater.createTransport({ spawn() { calls++; throw Error('network prohibited'); } });
+  for (const [files, version] of [
+    [ipk().files, updater.ROLLBACK_VERSION], [ipk(updater.ROLLBACK_VERSION).files, updater.VERSION],
+    [ipk().files, '0.1.7'], [ipk().files.slice(1), updater.VERSION],
+    [ipk().files.map((entry, index) => index ? entry : { ...entry, path: 'foreign.js' }), updater.VERSION],
+    [ipk(updater.ROLLBACK_VERSION).files.map((entry, index) => index ? entry : { ...entry, sha256: 'invalid' }), updater.ROLLBACK_VERSION]
+  ]) await assert.rejects(adapter.verify(files, version));
+  assert.equal(calls, 0);
+});
+
 test('Подписка адаптера прекращает обработку при FAILED и не принимает installed другого id', async () => {
   for (const event of [
     { id: updater.APP_ID, details: { state: 'FAILED', reason: 'bad package' } },
@@ -302,4 +430,21 @@ test('Подписка адаптера прекращает обработку 
     } });
     await assert.rejects(adapter.install('/tmp/lg-gate-update-' + updater.VERSION + '-112233445566.ipk'));
   }
+});
+
+test('Адаптер принимает временный путь отката 0.1.5 и отклоняет прочие версии до spawn', async () => {
+  let spawned = 0;
+  const adapter = updater.createTransport({ spawn() {
+    spawned++;
+    const child = new EventEmitter(); child.stdout = new EventEmitter(); child.stderr = new EventEmitter(); child.stdin = { destroy() {} }; child.kill = () => {};
+    process.nextTick(() => child.stdout.emit('data', Buffer.from(JSON.stringify({ id: updater.APP_ID, details: { packageId: updater.APP_ID, state: 'installed' } }))));
+    return child;
+  } });
+  const remote = '/tmp/lg-gate-update-' + updater.ROLLBACK_VERSION + '-112233445566.ipk';
+  assert.equal((await adapter.install(remote)).installed, true);
+  assert.equal(spawned, 1);
+  for (const invalid of [remote.replace('0.1.5', '0.1.4'), remote + '\n', '/tmp/../' + remote.slice(5)]) {
+    await assert.rejects(adapter.install(invalid), /временный путь/);
+  }
+  assert.equal(spawned, 1);
 });

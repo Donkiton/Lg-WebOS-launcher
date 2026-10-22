@@ -18,10 +18,11 @@ const CLI_VERSION = '3.2.6';
 const ALLOWLIST = Object.freeze([
   'appinfo.json', 'index.html', 'portal.html', 'app.js', 'msx-catalog.js', 'platform.js', 'wallpaper.js', 'home-state.js', 'styles.css',
   'assets/wallpapers/morning.png', 'assets/wallpapers/day.png', 'assets/wallpapers/night.png',
+  'assets/wallpapers/northern-lake.png',
   'assets/mountain-sunset.png', 'assets/app-icon.png', 'assets/app-icon-large.png'
 ]);
 const MANIFEST = Object.freeze({
-  id: 'org.lggate.launcher', version: '0.1.4', type: 'web', main: 'index.html', title: 'LG Gate',
+  id: 'org.lggate.launcher', version: '0.1.6', type: 'web', main: 'index.html', title: 'LG Gate',
   icon: 'assets/app-icon.png', largeIcon: 'assets/app-icon-large.png', iconColor: '#0b1726',
   resolution: '1920x1080', disableBackHistoryAPI: true, handlesRelaunch: false, transparent: false
 });

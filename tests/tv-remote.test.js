@@ -173,20 +173,24 @@ test('Правила Zona и IVI сохраняются и удаляются н
 });
 
 test('Zona требует обновлённый лаунчер до изменения фильтров', async () => {
-  const f = fakeManager({ profileName: 'zona', targetVersion: '0.1.1' });
-  await assert.rejects(f.main('apply'), /0\.1\.2/);
-  assert.equal(f.state.writes.length, 0);
+  for (const targetVersion of ['0.1.1', '0.1.7', '0.1.50']) {
+    const f = fakeManager({ profileName: 'zona', targetVersion });
+    await assert.rejects(f.main('apply'), /0\.1\.2/);
+    assert.equal(f.state.writes.length, 0);
+  }
 });
 
 test('Применение и откат Zona сохраняют существующее правило IVI → YouTube', async () => {
-  const f = fakeManager({ profileName: 'zona' });
-  f.state.filters = manager.addFilter(original);
-  f.state.factory = { present: true, value: clone(f.state.filters) };
-  const before = clone(f.state.filters);
-  const result = await f.main('apply');
-  assert.equal(result.sourceCode, 1083); assert.equal(result.shortcut, 'zona');
-  assert.ok(f.state.filters.some(item => item.handler === manager.FILTER.handler));
-  await f.main('restore');
-  assert.deepEqual(f.state.filters, before);
-  assert.deepEqual(f.state.factory, { present: true, value: before });
+  for (const targetVersion of ['0.1.2', '0.1.3', '0.1.4', '0.1.5', '0.1.6']) {
+    const f = fakeManager({ profileName: 'zona', targetVersion });
+    f.state.filters = manager.addFilter(original);
+    f.state.factory = { present: true, value: clone(f.state.filters) };
+    const before = clone(f.state.filters);
+    const result = await f.main('apply');
+    assert.equal(result.sourceCode, 1083); assert.equal(result.shortcut, 'zona');
+    assert.ok(f.state.filters.some(item => item.handler === manager.FILTER.handler));
+    await f.main('restore');
+    assert.deepEqual(f.state.filters, before);
+    assert.deepEqual(f.state.factory, { present: true, value: before });
+  }
 });
