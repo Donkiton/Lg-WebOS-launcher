@@ -1,85 +1,85 @@
 # LG Gate
 
 <p align="center">
-  <a href="README.ru.md"><img src="assets/readme/lang-ru.svg" height="32" alt="Русский"></a>
-  <a href="README.md"><img src="assets/readme/lang-en-active.svg" height="32" alt="English — selected"></a>
+  <a href="README.md"><img src="assets/readme/lang-ru-active.svg" height="32" alt="Русский — выбран"></a>
+  <a href="README.en.md"><img src="assets/readme/lang-en.svg" height="32" alt="English"></a>
   <a href="README.zh-CN.md"><img src="assets/readme/lang-zh.svg" height="32" alt="中文"></a>
   <a href="README.ja.md"><img src="assets/readme/lang-ja.svg" height="32" alt="日本語"></a>
   <a href="README.de.md"><img src="assets/readme/lang-de.svg" height="32" alt="Deutsch"></a>
 </p>
 
 <p align="center">
-  <img src="assets/readme/hero-en.svg" width="100%" alt="LG Gate for webOS: six favorites, one home screen">
+  <img src="assets/readme/hero-ru.svg" width="100%" alt="LG Gate для webOS: шесть любимых приложений, один домашний экран">
 </p>
 
-A home screen for LG webOS with six favorite apps, remote control navigation, and a choice of local wallpapers.
+Домашний экран для LG webOS: шесть любимых приложений, управление пультом и выбор локального фона.
 
-[**Download 0.1.7**](dist/org.lggate.launcher_0.1.7_all.ipk?raw=true) · [Installation and rollback (Russian)](docs/INSTALLATION.md) · [SHA256](dist/SHA256SUMS.txt)
+[**Скачать 0.1.7**](dist/org.lggate.launcher_0.1.7_all.ipk?raw=true) · [Установка и откат](docs/INSTALLATION.md) · [SHA256](dist/SHA256SUMS.txt)
 
 > [!WARNING]
-> **Tested only on LG SM8200PLA.**
-> Firmware **05.40.97** · webOS **4.10.2 (generation 4.5)** · Homebrew Channel **0.7.3**.
+> **Проверено только на LG SM8200PLA.**
+> ПО **05.40.97** · webOS **4.10.2 (поколение 4.5)** · Homebrew Channel **0.7.3**.
 >
-> **Compatibility with other models and versions has not been confirmed.** Do not install the IPK or apply the scripts without a separate compatibility check.
+> **Для других моделей и версий совместимость не подтверждена.** Не устанавливайте IPK и не применяйте скрипты без отдельной проверки совместимости.
 
-![LG Gate 0.1.7 home screen with the Seashore wallpaper and six sample apps](assets/readme/home-017.webp)
+![LG Gate 0.1.7: главный экран с фоном «Морской берег» и шестью примерами приложений](assets/readme/home-017.webp)
 
-Screenshots show browser previews with sample apps and the original Russian interface. On the TV, the launcher uses the TV's own app catalog.
+Скриншоты — из браузерного предпросмотра с общими примерами и русским интерфейсом. На ТВ используется его собственный каталог.
 
-## What's new in 0.1.7
+## Новое в 0.1.7
 
-Seven new wallpapers and a picker with thumbnails and live preview. The panel opens over the right side of the launcher, keeping the clock and app cards in place and at their original size. This build was installed on LG SM8200PLA; all 35 application files were verified with SHA256.
+Семь новых фонов и меню с миниатюрами и предпросмотром. Панель открывается справа поверх лаунчера, сохраняя размер и положение часов и карточек. Сборка установлена на LG SM8200PLA; все 35 файлов приложения проверены по SHA256.
 
-## Features
+## Возможности
 
-- **Home screen:** up to six app cards that you can pin, replace, and reorder.
-- **App catalog:** apps installed on the TV and supported Media Station X shortcuts.
-- **Return home:** Home button integration, startup launch, and return after fully exiting an app.
-- **App buttons:** separately configure IVI → YouTube and Movies/Rakuten → Zona.
-- **Wi-Fi, added in 0.1.5:** opens LG's native network list; choose a network and enter its password in the TV settings.
-- **Appearance:** 12 local wallpapers, a black background, animations, surface-aware reflections, and dimming.
+- **Главный экран:** до шести карточек с закреплением, заменой и перестановкой.
+- **Каталог:** приложения телевизора и поддерживаемые ярлыки Media Station X.
+- **Возврат домой:** Home, автозапуск и возврат после окончательного выхода из приложения.
+- **Кнопки приложений:** отдельная настройка IVI → YouTube и Movies/Rakuten → Zona.
+- **Wi-Fi, добавлен в 0.1.5:** кнопка открывает штатный список сетей LG; выбор сети и ввод пароля выполняются в настройках телевизора.
+- **Оформление:** 12 локальных фонов, чёрный экран, анимации, отражения с учётом поверхности и затемнение.
 
-## Choose your background
+## Выбор фона
 
-In **Settings → Wallpaper**, use the arrow keys to preview a background, **OK** to save it, and **Back** to restore the saved background. A light border marks focus; a checkmark marks the saved choice. The selection survives restarts; backgrounds do not change automatically with the time of day. The five earlier wallpapers are in the **Classic** tab; **No wallpaper** gives you a black screen.
+В **«Настройки → Фон»** стрелки меняют временный предпросмотр, **OK** сохраняет выбор, **Back** возвращает установленный фон. Светлая рамка обозначает фокус, галочка — сохранённый вариант. Выбор сохраняется после перезапуска; автоматической смены по времени нет. Прежние пять фонов доступны во вкладке **«Классические»**, пункт **«Без фона»** включает чёрный экран.
 
-![LG Gate 0.1.7 wallpaper picker over the launcher, with a New Year's Eve preview and thumbnails](assets/readme/wallpaper-menu.webp)
+![LG Gate 0.1.7: меню фона поверх лаунчера, предпросмотр «Новогоднего вечера» и миниатюры](assets/readme/wallpaper-menu.webp)
 
-The seven new scenes are **Seashore**, **After the Rain**, **Japanese Garden**, **Obsidian**, **Orbit**, **Northern Lights**, and **New Year's Eve**. Images and thumbnails are bundled and work offline; the interface renders the app card reflections.
+Семь новых сцен: **«Морской берег»**, **«После дождя»**, **«Японский сад»**, **«Обсидиан»**, **«Орбита»**, **«Северное сияние»** и **«Новогодний вечер»**. Изображения и миниатюры входят в пакет и работают без сети; отражения карточек формирует интерфейс.
 
 <details>
-<summary>Earlier wallpapers and app catalog — screenshots from 0.1.4</summary>
+<summary>Прежние фоны и каталог — скриншоты 0.1.4</summary>
 
-| Morning | Day |
+| Утро | День |
 | :---: | :---: |
-| ![Morning wallpaper: a softly lit mountain lake, clock at 08:30](assets/readme/home.webp) | ![Day wallpaper: a bright mountain lake, clock at 14:30](assets/readme/day.webp) |
+| ![Утренний фон: горное озеро в мягком свете, часы 08:30](assets/readme/home.webp) | ![Дневной фон: яркое горное озеро, часы 14:30](assets/readme/day.webp) |
 
-| Evening | Night |
+| Вечер | Ночь |
 | :---: | :---: |
-| ![Evening wallpaper: sunset over a mountain lake, clock at 20:30](assets/readme/evening.webp) | ![Night wallpaper: moonlight and lake reflections, clock at 00:30](assets/readme/night.webp) |
+| ![Вечерний фон: закат над горным озером, часы 20:30](assets/readme/evening.webp) | ![Ночной фон: лунный свет и отражения на озере, часы 00:30](assets/readme/night.webp) |
 
-![LG Gate 0.1.4 app catalog in the browser preview](assets/readme/apps.webp)
+![Каталог приложений LG Gate 0.1.4 в браузерном предпросмотре](assets/readme/apps.webp)
 
 </details>
 
-## Remote controls
+## Управление пультом
 
-| Button | Action |
+| Кнопка | Действие |
 | --- | --- |
-| Arrow keys | Move focus |
-| OK | Launch the selected app |
-| Blue button | Open app card actions |
-| Back | Go back |
+| Стрелки | Навигация |
+| OK | Запуск выбранного приложения |
+| Синяя кнопка | Действия с карточкой |
+| Back | Назад |
 
-## Install on your TV
+## Установка на ТВ
 
-**Root access and Homebrew Channel are required.** Rooting tools are not included.
+Нужны **root-доступ и Homebrew Channel**. Получение root в комплект не входит.
 
-Check your model and versions against the configuration above, download the IPK, and follow the [step-by-step guide (Russian)](docs/INSTALLATION.md): install → assign Home → enable startup launch. The guide also covers button configuration and rollback. After a cold boot, Live TV may still appear before the launcher.
+Сверь модель и версии выше, скачай IPK и следуй [пошаговой инструкции](docs/INSTALLATION.md): установка → назначение Home → автозапуск. Там же — настройка кнопок и откат. После холодного старта перед лаунчером пока может появляться Live TV.
 
-## Preview on your computer
+## Предпросмотр на ПК
 
-Requires **Node.js 18+**.
+Нужен **Node.js 18+**.
 
 ```powershell
 git clone https://github.com/Donkiton/Lg-WebOS-launcher.git
@@ -87,6 +87,6 @@ cd Lg-WebOS-launcher
 npm start
 ```
 
-Open **<http://127.0.0.1:4173>**. App launches and network behavior are simulated in the preview. The installed TV launcher runs without a server on your computer.
+Открой **<http://127.0.0.1:4173>**. Запуск приложений и сеть здесь имитируются. Установленный лаунчер работает без сервера на ПК.
 
-More documentation, in Russian: [installation, build, and rollback](docs/INSTALLATION.md) · [technical notes](docs/DEVELOPMENT.md) · [design history](DESIGN.md).
+[Установка, сборка и откат](docs/INSTALLATION.md) · [Технические заметки](docs/DEVELOPMENT.md) · [История дизайна](DESIGN.md).
