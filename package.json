@@ -2,6 +2,7 @@
   "name": "lg-home-prototype",
   "version": "0.1.7",
   "private": true,
+  "license": "SEE LICENSE IN LICENSE",
   "description": "Локальный прототип домашнего экрана LG webOS",
   "scripts": {
     "start": "node server.js",
