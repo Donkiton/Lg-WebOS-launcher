@@ -32,7 +32,7 @@ function fixture(options = {}) {
   return { controller, items, loaded, applied, written, reads };
 }
 
-test('ES5 UMD API содержит пять локальных фонов и отдельный чёрный вариант', () => {
+test('ES5 UMD API сохраняет классику и содержит семь новых фонов и чёрный вариант', () => {
   const source = fs.readFileSync(require.resolve('../wallpaper'), 'utf8');
   assert.doesNotMatch(source, /\b(?:const|let|class)\s|=>|\?\./);
   assert.doesNotMatch(source, /new Date|readSession|setInterval|getWallpaperRecord|periodForDate/);
@@ -44,6 +44,9 @@ test('ES5 UMD API содержит пять локальных фонов и о�
   assert.equal(BACKGROUNDS.none, null);
   assert.deepEqual(OPTIONS.map(option => option.id), Object.keys(BACKGROUNDS));
   assert.ok(OPTIONS.every(option => typeof option.label === 'string' && option.label.length));
+  assert.deepEqual(OPTIONS.filter(option => option.group === 'classic').map(option => option.id), ['lake', 'morning', 'day', 'evening', 'night']);
+  assert.deepEqual(OPTIONS.filter(option => option.group === 'new').map(option => option.id), ['coast', 'city', 'zen', 'obsidian', 'orbit', 'aurora', 'holiday', 'none']);
+  assert.deepEqual(OPTIONS.filter(option => option.group === 'new').map(option => option.material), ['water', 'wet-stone', 'stone', 'stone', 'glass', 'ice', 'wood', 'none']);
 });
 
 test('Свежий запуск сразу применяет Северное озеро без изображения, службы или часов', async () => {
@@ -278,4 +281,87 @@ test('Ошибка apply при смене восстанавливает пре
   assert.equal(h.controller.getSelection(), 'lake');
   assert.equal(h.items.get(KEY), saved('lake'));
   assert.deepEqual(h.applied, [BACKGROUNDS.lake]);
+});
+
+test('Предпросмотр меняет экран и материал, сохраняя установленный фон без записи', async () => {
+  const materials = [];
+  const h = fixture({ overrides: { apply(path, id, option) { h.applied.push(path); materials.push([id, option.material]); } } });
+  await h.controller.refresh();
+  assert.equal((await h.controller.preview('holiday')).status, 'ready');
+  assert.equal(h.controller.getSelection(), 'lake');
+  assert.equal(h.controller.getPreview(), 'holiday');
+  assert.deepEqual(h.written, []);
+  assert.deepEqual(materials, [['lake', 'water'], ['holiday', 'wood']]);
+  await h.controller.refresh();
+  assert.equal(h.controller.getPreview(), 'holiday', 'Window focus refresh keeps the active preview');
+  assert.deepEqual(h.applied, [BACKGROUNDS.lake, BACKGROUNDS.holiday]);
+  const cancelled = h.controller.cancelPreview();
+  assert.equal(h.controller.getPreview(), 'lake', 'Closing the panel restores the saved image synchronously');
+  await cancelled;
+  assert.deepEqual(h.written, []);
+  assert.deepEqual(materials, [['lake', 'water'], ['holiday', 'wood'], ['lake', 'water']]);
+});
+
+test('OK сохраняет готовый предпросмотр без повторной загрузки и лишнего apply', async () => {
+  const h = fixture();
+  await h.controller.refresh();
+  await h.controller.preview('orbit');
+  assert.equal((await h.controller.select('orbit')).status, 'ready');
+  assert.equal(h.controller.getSelection(), 'orbit');
+  assert.deepEqual(h.loaded, [BACKGROUNDS.orbit]);
+  assert.deepEqual(h.applied, [BACKGROUNDS.lake, BACKGROUNDS.orbit]);
+  assert.deepEqual(h.written, [[KEY, saved('orbit')]]);
+  await h.controller.preview('none');
+  await h.controller.cancelPreview();
+  assert.equal(h.controller.getPreview(), 'orbit');
+  assert.deepEqual(h.written, [[KEY, saved('orbit')]]);
+});
+
+test('Поздний предпросмотр и ожидающий OK не могут примениться после отмены', async () => {
+  for (const operation of ['preview', 'select']) {
+    const image = deferred();
+    const h = fixture({ overrides: { loadImage() { return image.promise; } } });
+    await h.controller.refresh();
+    await h.controller.preview('none');
+    const pending = h.controller[operation]('aurora');
+    await turn();
+    await h.controller.cancelPreview();
+    image.resolve();
+    assert.equal((await pending).status, 'stale');
+    assert.equal(h.controller.getPreview(), 'lake');
+    assert.equal(h.controller.getSelection(), 'lake');
+    assert.deepEqual(h.written, []);
+    assert.deepEqual(h.applied, [BACKGROUNDS.lake, null, BACKGROUNDS.lake]);
+  }
+});
+
+test('Быстрое перемещение фокуса оставляет только последний предпросмотр', async () => {
+  const coast = deferred(), city = deferred();
+  const h = fixture({ overrides: { loadImage(path) { return path === BACKGROUNDS.coast ? coast.promise : city.promise; } } });
+  await h.controller.refresh();
+  const older = h.controller.preview('coast'); await turn();
+  const newer = h.controller.preview('city'); await turn();
+  city.resolve(); assert.equal((await newer).status, 'ready');
+  coast.resolve(); assert.equal((await older).status, 'stale');
+  assert.equal(h.controller.getPreview(), 'city');
+  assert.deepEqual(h.applied, [BACKGROUNDS.lake, BACKGROUNDS.city]);
+  assert.deepEqual(h.written, []);
+});
+
+test('Отмена загрузки освобождает отменяемый loader при смене фокуса и закрытии', async () => {
+  const requests = [], cancellations = [];
+  const h = fixture({ overrides: { loadImage(path) {
+    const image = deferred();
+    image.promise.cancel = () => { cancellations.push(path); image.reject(Error('cancelled')); };
+    requests.push(image);
+    return image.promise;
+  } } });
+  await h.controller.refresh();
+  const first = h.controller.preview('coast'); await turn();
+  const second = h.controller.preview('city'); await turn();
+  await h.controller.cancelPreview();
+  assert.equal((await first).status, 'stale');
+  assert.equal((await second).status, 'stale');
+  assert.deepEqual(cancellations, [BACKGROUNDS.coast, BACKGROUNDS.city]);
+  assert.equal(h.controller.getPreview(), 'lake');
 });

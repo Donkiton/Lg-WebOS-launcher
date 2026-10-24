@@ -45,6 +45,8 @@
     wifi: '<path d="M3 9a21 21 0 0 1 30 0M8 15a14 14 0 0 1 20 0M13 21a7 7 0 0 1 10 0"/><circle cx="18" cy="27" r="2" fill="currentColor" stroke="none"/>',
     settings: '<path d="m22 3 1.1 4.2 3.2 1.9 4.2-1.2 4 6.8-3.1 3v3.7l3.1 3-4 6.8-4.2-1.2-3.2 1.9L22 36h-8l-1.1-4.1-3.2-1.9-4.2 1.2-4-6.8 3.1-3v-3.7l-3.1-3 4-6.8 4.2 1.2 3.2-1.9L14 3z" fill="currentColor" stroke="none"/><circle cx="18" cy="19.5" r="7" fill="#18283b" stroke="none"/>',
     back: '<path d="m15 8-9 9 9 9M7 17h17a8 8 0 0 1 0 16h-7"/>',
+    close: '<path d="m10 12 16 16M26 12 10 28"/>',
+    check: '<path d="m9 20 6 6 12-13"/>',
     grid: '<rect x="3" y="3" width="12" height="12" rx="1.5"/><rect x="21" y="3" width="12" height="12" rx="1.5"/><rect x="3" y="21" width="12" height="12" rx="1.5"/><rect x="21" y="21" width="12" height="12" rx="1.5"/>'
   };
   function escapeHtml(value) {
@@ -192,7 +194,8 @@
       storage: storage,
       initialSelection: window.LauncherWallpaper.early ? window.LauncherWallpaper.early.selection : null,
       loadImage: function (path) {
-        return new Promise(function (resolve, reject) {
+        var cancel;
+        var pending = new Promise(function (resolve, reject) {
           var image = null;
           var settled = false;
           var timer = window.setTimeout(function () { finish(new Error('Wallpaper load timed out')); }, 5000);
@@ -207,11 +210,19 @@
           image.onload = function () { finish(); };
           image.onerror = function () { finish(new Error('Wallpaper unavailable')); };
           image.src = path;
+          cancel = function () {
+            finish(new Error('Wallpaper request cancelled'));
+            image.src = '';
+            image = null;
+          };
         });
+        pending.cancel = function () { if (cancel) cancel(); };
+        return pending;
       },
-      apply: function (path) {
+      apply: function (path, id, option) {
         wallpaper.style.backgroundImage = path ? 'url("' + path + '")' : 'none';
         stage.classList.toggle('no-wallpaper', !path);
+        stage.setAttribute('data-reflection-material', option ? option.material : 'water');
       }
     });
   }
@@ -221,29 +232,67 @@
   function wallpaperSelection() {
     return wallpaperController ? wallpaperController.getSelection() : window.LauncherWallpaper.DEFAULT;
   }
-  function wallpaperLabel() {
+  function wallpaperLabel(id) {
     var options = window.LauncherWallpaper.OPTIONS;
-    var selected = wallpaperSelection();
+    var selected = id || wallpaperSelection();
     for (var i = 0; i < options.length; i++) if (options[i].id === selected) return options[i].label;
     return '';
   }
   function syncWallpaperControls(message) {
     var choices = overlay.querySelectorAll('[data-wallpaper]');
-    for (var i = 0; i < choices.length; i++) choices[i].setAttribute('aria-checked', String(choices[i].getAttribute('data-wallpaper') === wallpaperSelection()));
+    for (var i = 0; i < choices.length; i++) {
+      var selected = choices[i].getAttribute('data-wallpaper') === wallpaperSelection();
+      choices[i].setAttribute('aria-checked', String(selected));
+      choices[i].classList.toggle('is-selected', selected);
+    }
     var label = document.getElementById('wallpaper-current');
     if (label) label.textContent = wallpaperLabel();
+    var savedName = document.getElementById('wallpaper-saved-name');
+    if (savedName) savedName.textContent = wallpaperLabel();
     var status = document.getElementById('wallpaper-status');
-    if (status) status.textContent = message;
+    if (status) {
+      status.textContent = message || '';
+      if (status.parentNode) status.parentNode.classList.toggle('has-status', !!message);
+    }
+  }
+  function previewWallpaper(id) {
+    if (!wallpaperController || view !== 'wallpaper') return;
+    var revision = viewRevision;
+    wallpaperController.preview(id).then(function (result) {
+      if (view !== 'wallpaper' || revision !== viewRevision || result.status === 'stale' || result.status === 'disposed') return;
+      if (result.status !== 'ready') {
+        syncWallpaperControls('Предпросмотр недоступен. Попробуйте ещё раз.');
+        return;
+      }
+      viewData.preview = id;
+      var label = document.getElementById('wallpaper-preview-name');
+      if (label) label.textContent = wallpaperLabel(id);
+      syncWallpaperControls();
+    }).catch(function () {
+      if (view === 'wallpaper' && revision === viewRevision) syncWallpaperControls('Предпросмотр недоступен. Попробуйте ещё раз.');
+    });
+  }
+  function changeWallpaperGroup(group, focusTab) {
+    if (view !== 'wallpaper' || group !== 'new' && group !== 'classic') return;
+    viewData.group = group;
+    viewData.focusTab = !!focusTab;
+    renderView(view, viewData);
+    delete viewData.focusTab;
   }
   function selectWallpaper(id) {
     if (!wallpaperController) return;
-    var status = document.getElementById('wallpaper-status');
-    if (status) status.textContent = 'Применяем…';
+    var revision = viewRevision;
+    syncWallpaperControls('Сохраняем…');
     wallpaperController.select(id).then(function (result) {
-      if (result.status === 'stale' || result.status === 'disposed') return;
-      syncWallpaperControls(result.status === 'image-unavailable' ? 'Не удалось загрузить фон. Попробуйте ещё раз.' : result.status === 'storage-unavailable' ? 'Не удалось сохранить фон. Предыдущий выбор сохранён.' : result.status === 'ready' || result.status === 'unchanged' ? 'Фон сохранён' : 'Не удалось применить фон. Попробуйте ещё раз.');
+      if (view !== 'wallpaper' || revision !== viewRevision || result.status === 'stale' || result.status === 'disposed') return;
+      if (result.status === 'ready' || result.status === 'unchanged') {
+        viewData.preview = wallpaperController.getPreview();
+        var label = document.getElementById('wallpaper-preview-name');
+        if (label) label.textContent = wallpaperLabel(viewData.preview);
+      }
+      syncWallpaperControls(result.status === 'image-unavailable' ? 'Не удалось загрузить фон. Повторите выбор.' : result.status === 'storage-unavailable' ? 'Не удалось сохранить. Прежний фон сохранён.' : result.status === 'ready' || result.status === 'unchanged' ? 'Фон сохранён' : 'Не удалось применить фон. Попробуйте ещё раз.');
     }).catch(function () {
-      syncWallpaperControls('Не удалось применить фон. Попробуйте ещё раз.');
+      if (view === 'wallpaper' && revision === viewRevision) syncWallpaperControls('Не удалось применить фон. Попробуйте ещё раз.');
     });
   }
   function updateClock() {
@@ -324,11 +373,16 @@
       for (i = 0; i < modes.length; i++) html += '<button id="motion-' + modes[i][0] + '" class="choice" data-motion="' + modes[i][0] + '" aria-pressed="' + (settings.motion === modes[i][0]) + '">' + modes[i][1] + '</button>';
       html += '</div></div><div class="settings-group">' + toggleRow('reflections', 'Отражения карточек') + toggleRow('dim', 'Приглушить фон') + toggleRow('hints', 'Подсказки управления') + '</div><div class="settings-group system-links"><button id="tv-settings-button" class="setting-row" data-action="tv-settings"><span>Настройки телевизора</span><span class="chevron" aria-hidden="true">›</span></button><button id="inputs-button" class="setting-row" data-action="inputs"><span>Источники сигнала</span><span class="chevron" aria-hidden="true">›</span></button><button id="help-button" class="setting-row" data-action="help"><span>Управление</span><span class="chevron" aria-hidden="true">›</span></button></div><p class="settings-note">' + (platform.mode === 'browser' ? 'Предпросмотр в браузере · приложения с вашего ТВ' : 'Режим webOS · системные данные телевизора') + '<br>Карточки и порядок сохраняются на этом устройстве.</p></div>';
     } else if (name === 'wallpaper') {
-      html = '<div class="settings-panel wallpaper-panel"><h1 class="view-heading">Фон</h1>' + backButton() + '<p class="wallpaper-note">Выберите изображение и нажмите OK.<br>Фон сохраняется до следующего выбора.</p><div class="wallpaper-options" role="radiogroup" aria-label="Фон главного экрана">';
-      var backgrounds = window.LauncherWallpaper.OPTIONS;
+      data.group = data.group === 'classic' ? 'classic' : 'new';
+      var backgrounds = window.LauncherWallpaper.optionsForGroup(data.group);
       var selectedBackground = wallpaperSelection();
-      for (i = 0; i < backgrounds.length; i++) html += '<button id="wallpaper-' + backgrounds[i].id + '" class="setting-row wallpaper-option" data-wallpaper="' + backgrounds[i].id + '" role="radio" aria-checked="' + (selectedBackground === backgrounds[i].id) + '"><span>' + escapeHtml(backgrounds[i].label) + '</span><span class="selection-mark" aria-hidden="true"></span></button>';
-      html += '</div><p id="wallpaper-status" class="wallpaper-status" role="status" aria-live="polite"></p></div>';
+      html = '<div class="wallpaper-preview-label"><span>Предпросмотр</span><strong id="wallpaper-preview-name">' + escapeHtml(wallpaperLabel(data.preview || selectedBackground)) + '</strong></div><section class="wallpaper-panel" aria-labelledby="wallpaper-title"><div class="wallpaper-heading"><h1 id="wallpaper-title">Фон</h1><button id="wallpaper-close" class="wallpaper-close icon-button" data-action="back" aria-label="Закрыть выбор фона">' + svg('close', 'wallpaper-close-icon') + '</button></div><p class="wallpaper-note">Выберите настроение вашего экрана</p><div class="wallpaper-tabs" role="tablist" aria-label="Коллекции фонов"><button id="wallpaper-tab-new" class="wallpaper-tab' + (data.group === 'new' ? ' is-active' : '') + '" data-wallpaper-group="new" role="tab" aria-selected="' + (data.group === 'new') + '" aria-controls="wallpaper-grid">Новые</button><button id="wallpaper-tab-classic" class="wallpaper-tab' + (data.group === 'classic' ? ' is-active' : '') + '" data-wallpaper-group="classic" role="tab" aria-selected="' + (data.group === 'classic') + '" aria-controls="wallpaper-grid">Классические</button></div><div id="wallpaper-grid" class="wallpaper-grid" role="radiogroup" aria-label="Фон главного экрана">';
+      for (i = 0; i < backgrounds.length; i++) {
+        var background = backgrounds[i];
+        var savedBackground = selectedBackground === background.id;
+        html += '<button id="wallpaper-' + background.id + '" class="wallpaper-card' + (savedBackground ? ' is-selected' : '') + (background.id === 'none' ? ' wallpaper-card-none' : '') + '" data-wallpaper="' + background.id + '" data-wallpaper-index="' + i + '" role="radio" aria-checked="' + savedBackground + '" aria-label="' + escapeHtml(background.label) + '">' + (background.thumbnail ? '<img class="wallpaper-thumbnail" src="' + background.thumbnail + '" alt="" draggable="false">' : '<span class="wallpaper-thumbnail wallpaper-thumbnail-none" aria-hidden="true"></span>') + '<span class="wallpaper-name">' + escapeHtml(background.label) + '</span><span class="wallpaper-selected-check" aria-hidden="true">' + svg('check', 'wallpaper-check-icon') + '</span></button>';
+      }
+      html += '</div><div class="wallpaper-footer"><p class="wallpaper-current-label">Установлен: <span id="wallpaper-saved-name">' + escapeHtml(wallpaperLabel()) + '</span></p><p id="wallpaper-status" class="wallpaper-status" role="status" aria-live="polite"></p><div class="wallpaper-help"><span><kbd>OK</kbd> Применить</span><span><kbd>Назад</kbd> Закрыть</span></div></div></section>';
     } else if (name === 'launch') {
       var app = findApp(data.appId);
       html = '<div class="center-dialog" aria-labelledby="dialog-title">' + (app ? '<div class="launch-brand brand-' + theme(app) + '" aria-hidden="true">' + brand(app) + '</div>' : '') + '<h2 id="dialog-title">' + escapeHtml(app ? app.name : 'Запуск приложения') + '</h2><p>' + escapeHtml(data.message || 'Открываем приложение…') + '</p><button id="launch-back" class="text-button" data-action="back">Вернуться</button></div>';
@@ -369,8 +423,9 @@
     overlay.setAttribute('role', 'dialog');
     overlay.setAttribute('aria-modal', 'true');
     overlay.hidden = false;
-    overlay.className = 'overlay is-open' + (name === 'portal' ? ' portal-open' : '');
+    overlay.className = 'overlay is-open' + (name === 'portal' ? ' portal-open' : name === 'wallpaper' ? ' wallpaper-picker-open' : '');
     stage.classList.add('has-overlay');
+    stage.classList.toggle('wallpaper-picker-open', name === 'wallpaper');
     stage.classList.toggle('apps-open', name === 'apps' || name === 'replace' || name === 'reorder' || stack.some(function (item) { return item.name === 'apps'; }));
     home.setAttribute('aria-hidden', 'true');
     if (name === 'portal') {
@@ -400,7 +455,8 @@
       frame.focus();
       return;
     }
-    var first = name === 'apps' ? (apps.length ? 'grid-app-' + (data.page * homeState.pageSize) : 'catalog-retry') : name === 'settings' ? 'wallpaper-button' : name === 'wallpaper' ? 'wallpaper-' + wallpaperSelection() : name === 'context' ? 'context-open' : name === 'replace' ? 'replace-slot-0' : name === 'reorder' ? 'reorder-slot-' + data.order.indexOf(data.appId) : name + '-back';
+    var first = name === 'apps' ? (apps.length ? 'grid-app-' + (data.page * homeState.pageSize) : 'catalog-retry') : name === 'settings' ? 'wallpaper-button' : name === 'wallpaper' ? 'wallpaper-' + (window.LauncherWallpaper.optionFor(selectedBackground).group === data.group ? selectedBackground : backgrounds[0].id) : name === 'context' ? 'context-open' : name === 'replace' ? 'replace-slot-0' : name === 'reorder' ? 'reorder-slot-' + data.order.indexOf(data.appId) : name + '-back';
+    if (name === 'wallpaper' && data.focusTab) first = 'wallpaper-tab-' + data.group;
     if (!focusId(first)) focusId('view-back');
   }
   function detailRow(label, value) {
@@ -647,6 +703,7 @@
     pendingShortcut = null;
     if (view === 'home') return;
     cancelPress();
+    if (view === 'wallpaper' && wallpaperController) wallpaperController.cancelPreview();
     if (view === 'apps' && viewData.manage) {
       viewData.manage = false;
       updateCurrentView();
@@ -671,6 +728,8 @@
       overlay.innerHTML = '';
       stage.classList.remove('has-overlay');
       stage.classList.remove('apps-open');
+      stage.classList.remove('wallpaper-picker-open');
+      overlay.classList.remove('wallpaper-picker-open');
       home.removeAttribute('aria-hidden');
     } else {
       renderView(view, viewData);
@@ -686,6 +745,7 @@
   function goHome() {
     pendingShortcut = null;
     cancelPress();
+    if (view === 'wallpaper' && wallpaperController) wallpaperController.cancelPreview();
     if (viewData && viewData.control) viewData.control.cancelled = true;
     ++viewRevision;
     stack = [];
@@ -695,6 +755,8 @@
     overlay.innerHTML = '';
     stage.classList.remove('has-overlay');
     stage.classList.remove('apps-open');
+    stage.classList.remove('wallpaper-picker-open');
+    overlay.classList.remove('wallpaper-picker-open');
     home.removeAttribute('aria-hidden');
     focusHome();
     updatePriorities();
@@ -750,6 +812,7 @@
     var setting = button.getAttribute('data-setting');
     var mode = button.getAttribute('data-motion');
     var background = button.getAttribute('data-wallpaper');
+    var wallpaperGroup = button.getAttribute('data-wallpaper-group');
     var replaceIndex = button.getAttribute('data-replace-index');
     var reorderIndex = button.getAttribute('data-reorder-index');
     var inputIndex = button.getAttribute('data-input-index');
@@ -789,6 +852,7 @@
     }
     else if (action === 'page-prev' || action === 'page-next') changePage((viewData.page || 0) + (action === 'page-prev' ? -1 : 1), 0);
     else if (action === 'reload-apps') { loadApps(true); updateCurrentView(); }
+    else if (wallpaperGroup !== null) changeWallpaperGroup(wallpaperGroup, true);
     else if (action) openView(action);
     else if (setting) {
       settings[setting] = !settings[setting];
@@ -819,8 +883,30 @@
   function moveFocus(key) {
     var active = document.activeElement;
     var index = active && active.getAttribute('data-home-index');
-    if (view === 'settings' || view === 'wallpaper') {
-      var rows = view === 'settings' ? [['wallpaper-button'], ['motion-smooth', 'motion-fast', 'motion-off'], ['setting-reflections'], ['setting-dim'], ['setting-hints'], ['tv-settings-button'], ['inputs-button'], ['help-button']] : window.LauncherWallpaper.OPTIONS.map(function (option) { return ['wallpaper-' + option.id]; });
+    if (view === 'wallpaper') {
+      var wallpaperGroup = viewData.group || 'new';
+      var backgrounds = window.LauncherWallpaper.optionsForGroup(wallpaperGroup);
+      var wallpaperIndex = active && active.getAttribute('data-wallpaper-index');
+      var tab = active && active.getAttribute('data-wallpaper-group');
+      if (wallpaperIndex !== null && wallpaperIndex !== undefined) {
+        var current = Number(wallpaperIndex);
+        var target = current;
+        if (key === 38 && current < 2) { focusId('wallpaper-tab-' + wallpaperGroup); return; }
+        if (key === 37 && current % 2 === 1) target -= 1;
+        else if (key === 39 && current % 2 === 0 && current + 1 < backgrounds.length) target += 1;
+        else if (key === 38) target -= 2;
+        else if (key === 40 && current + 2 < backgrounds.length) target += 2;
+        else if (key === 40 && current + 1 < backgrounds.length && current % 2 === 1) target += 1;
+        focusId('wallpaper-' + backgrounds[target].id);
+      } else if (tab !== null && tab !== undefined) {
+        if (key === 37 || key === 39) changeWallpaperGroup(key === 37 ? 'new' : 'classic', true);
+        else if (key === 40) focusId('wallpaper-' + backgrounds[tab === 'classic' ? 1 : 0].id);
+        else if (key === 38) focusId('wallpaper-close');
+      } else if (key === 40) focusId('wallpaper-tab-' + wallpaperGroup);
+      return;
+    }
+    if (view === 'settings') {
+      var rows = [['wallpaper-button'], ['motion-smooth', 'motion-fast', 'motion-off'], ['setting-reflections'], ['setting-dim'], ['setting-hints'], ['tv-settings-button'], ['inputs-button'], ['help-button']];
       if (active && active.id === 'view-back' && key === 40) { focusId(rows[0][0]); return; }
       for (var row = 0; row < rows.length; row++) {
         var column = active ? rows[row].indexOf(active.id) : -1;
@@ -1016,6 +1102,7 @@
   stage.addEventListener('focusin', function (event) {
     var button = closestButton(event.target);
     if (!button) return;
+    if (view === 'wallpaper' && button.getAttribute('data-wallpaper') !== null) previewWallpaper(button.getAttribute('data-wallpaper'));
     var index = button.getAttribute('data-home-index');
     if (index !== null) {
       lastHomeIndex = Number(index);

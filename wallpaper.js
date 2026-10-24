@@ -14,15 +14,29 @@
     day: 'assets/wallpapers/day.png',
     evening: 'assets/mountain-sunset.png',
     night: 'assets/wallpapers/night.png',
+    coast: 'assets/wallpapers/coast.webp',
+    city: 'assets/wallpapers/city.webp',
+    zen: 'assets/wallpapers/zen.webp',
+    obsidian: 'assets/wallpapers/obsidian.webp',
+    orbit: 'assets/wallpapers/orbit.webp',
+    aurora: 'assets/wallpapers/aurora.webp',
+    holiday: 'assets/wallpapers/holiday.webp',
     none: null
   };
   var OPTIONS = [
-    { id: 'lake', label: 'Северное озеро' },
-    { id: 'morning', label: 'Утро' },
-    { id: 'day', label: 'День' },
-    { id: 'evening', label: 'Вечер' },
-    { id: 'night', label: 'Ночь' },
-    { id: 'none', label: 'Без фона' }
+    { id: 'lake', label: 'Северное озеро', group: 'classic', material: 'water', thumbnail: 'assets/wallpapers/northern-lake-thumb.webp' },
+    { id: 'morning', label: 'Утро', group: 'classic', material: 'water', thumbnail: 'assets/wallpapers/morning-thumb.webp' },
+    { id: 'day', label: 'День', group: 'classic', material: 'water', thumbnail: 'assets/wallpapers/day-thumb.webp' },
+    { id: 'evening', label: 'Вечер', group: 'classic', material: 'water', thumbnail: 'assets/wallpapers/evening-thumb.webp' },
+    { id: 'night', label: 'Ночь', group: 'classic', material: 'water', thumbnail: 'assets/wallpapers/night-thumb.webp' },
+    { id: 'coast', label: 'Морской берег', group: 'new', material: 'water', thumbnail: 'assets/wallpapers/coast-thumb.webp' },
+    { id: 'city', label: 'После дождя', group: 'new', material: 'wet-stone', thumbnail: 'assets/wallpapers/city-thumb.webp' },
+    { id: 'zen', label: 'Японский сад', group: 'new', material: 'stone', thumbnail: 'assets/wallpapers/zen-thumb.webp' },
+    { id: 'obsidian', label: 'Обсидиан', group: 'new', material: 'stone', thumbnail: 'assets/wallpapers/obsidian-thumb.webp' },
+    { id: 'orbit', label: 'Орбита', group: 'new', material: 'glass', thumbnail: 'assets/wallpapers/orbit-thumb.webp' },
+    { id: 'aurora', label: 'Северное сияние', group: 'new', material: 'ice', thumbnail: 'assets/wallpapers/aurora-thumb.webp' },
+    { id: 'holiday', label: 'Новогодний вечер', group: 'new', material: 'wood', thumbnail: 'assets/wallpapers/holiday-thumb.webp' },
+    { id: 'none', label: 'Без фона', group: 'new', material: 'none', thumbnail: null }
   ];
   var DEFAULT = 'lake';
   var bootstrapped = false;
@@ -34,6 +48,15 @@
 
   function validSelection(value) {
     return typeof value === 'string' && Object.prototype.hasOwnProperty.call(BACKGROUNDS, value);
+  }
+
+  function optionFor(id) {
+    for (var i = 0; i < OPTIONS.length; i += 1) if (OPTIONS[i].id === id) return OPTIONS[i];
+    return null;
+  }
+
+  function optionsForGroup(group) {
+    return OPTIONS.filter(function (option) { return option.group === group; });
   }
 
   function storageKey(mode) {
@@ -95,6 +118,8 @@
     var loadImage = options.loadImage || function () { return Promise.reject(new Error('Image loader unavailable')); };
     var apply = options.apply || function () {};
     var applied = false;
+    var visibleSelection = null;
+    var previewing = false;
     var disposed = false;
     var ticket = 0;
     // Retain at most the current request, never every decoded image or failure.
@@ -110,23 +135,44 @@
       return !disposed && request === ticket;
     }
 
+    function applyChoice(id) {
+      apply(BACKGROUNDS[id], id, optionFor(id));
+      applied = true;
+      visibleSelection = id;
+    }
+
     function restore() {
       if (disposed) return snapshot('disposed');
-      if (!applied) {
+      if (!applied || !previewing && visibleSelection !== selection) {
         try {
-          apply(BACKGROUNDS[selection]);
-          applied = true;
+          applyChoice(selection);
         } catch (failure) { return snapshot('apply-unavailable', failure); }
       }
       return snapshot('ready');
     }
 
+    function cancelLoading() {
+      if (!loading) return;
+      var previous = loading;
+      loading = null;
+      previous.cancelled = true;
+      if (typeof previous.cancel === 'function') {
+        try { previous.cancel(); } catch (ignoreCancel) { /* The ticket also rejects late results. */ }
+      }
+    }
+
     function load(id) {
       var path = BACKGROUNDS[id];
-      if (!path) return Promise.resolve();
       if (loading && loading.path === path) return loading.promise;
-      var request = { path: path, promise: null };
-      request.promise = Promise.resolve().then(function () { return loadImage(path); }).then(function () {
+      cancelLoading();
+      if (!path) return Promise.resolve();
+      var request = { path: path, promise: null, cancelled: false, cancel: null };
+      request.promise = Promise.resolve().then(function () {
+        if (request.cancelled) throw new Error('Wallpaper request cancelled');
+        var result = loadImage(path);
+        request.cancel = result && result.cancel;
+        return result;
+      }).then(function () {
         if (loading === request) loading = null;
       }, function (failure) {
         if (loading === request) loading = null;
@@ -141,18 +187,22 @@
       if (!validSelection(id)) return Promise.resolve(snapshot('invalid-selection', new Error('Unknown wallpaper')));
       var request = ++ticket;
       if (id === selection) {
+        cancelLoading();
+        previewing = false;
         var same = restore();
         if (same.status === 'ready') same.status = 'unchanged';
         return Promise.resolve(same);
       }
-      return load(id).then(function () {
+      var alreadyVisible = applied && visibleSelection === id;
+      if (alreadyVisible) cancelLoading();
+      return (alreadyVisible ? Promise.resolve() : load(id)).then(function () {
         if (!live(request)) return snapshot(disposed ? 'disposed' : 'stale');
         var previous = selection;
         try {
           if (!storage || typeof storage.setItem !== 'function') throw new Error('Wallpaper storage unavailable');
           storage.setItem(key, JSON.stringify({ version: 2, selection: id }));
         } catch (failure) { return snapshot('storage-unavailable', failure); }
-        try { apply(BACKGROUNDS[id]); }
+        try { if (visibleSelection !== id) applyChoice(id); }
         catch (failure) {
           // A DOM failure must not turn into a different saved selection.
           try { storage.setItem(key, JSON.stringify({ version: 2, selection: previous })); } catch (ignoreRollback) {}
@@ -160,11 +210,42 @@
         }
         selection = id;
         applied = true;
+        previewing = false;
         return snapshot('ready');
       }, function (failure) {
         if (!live(request)) return snapshot(disposed ? 'disposed' : 'stale');
         return snapshot('image-unavailable', failure);
       });
+    }
+
+    function preview(id) {
+      if (disposed) return Promise.resolve(snapshot('disposed'));
+      if (!validSelection(id)) return Promise.resolve(snapshot('invalid-selection', new Error('Unknown wallpaper')));
+      var request = ++ticket;
+      previewing = true;
+      if (id === visibleSelection || id === selection) {
+        cancelLoading();
+        try { if (id !== visibleSelection) applyChoice(id); }
+        catch (failure) { return Promise.resolve(snapshot('apply-unavailable', failure)); }
+        return Promise.resolve(snapshot('ready'));
+      }
+      return load(id).then(function () {
+        if (!live(request)) return snapshot(disposed ? 'disposed' : 'stale');
+        try { applyChoice(id); }
+        catch (failure) { return snapshot('apply-unavailable', failure); }
+        return snapshot('ready');
+      }, function (failure) {
+        if (!live(request)) return snapshot(disposed ? 'disposed' : 'stale');
+        return snapshot('image-unavailable', failure);
+      });
+    }
+
+    function cancelPreview() {
+      if (disposed) return Promise.resolve(snapshot('disposed'));
+      ticket += 1;
+      cancelLoading();
+      previewing = false;
+      return Promise.resolve(restore());
     }
 
     function refresh() {
@@ -176,13 +257,15 @@
     function dispose() {
       disposed = true;
       ticket += 1;
-      loading = null;
+      cancelLoading();
     }
 
-    return { getSelection: function () { return selection; }, select: select, refresh: refresh, dispose: dispose };
+    return { getSelection: function () { return selection; }, getPreview: function () { return visibleSelection || selection; },
+      select: select, preview: preview, cancelPreview: cancelPreview, refresh: refresh, dispose: dispose };
   }
 
   var api = { BACKGROUNDS: BACKGROUNDS, OPTIONS: OPTIONS, DEFAULT: DEFAULT,
+    optionFor: optionFor, optionsForGroup: optionsForGroup,
     createController: createController, bootstrap: bootstrap, early: null, initialParams: null, initialParamsRead: false };
   return api;
 }));

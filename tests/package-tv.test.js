@@ -11,7 +11,7 @@ test('Манифест пробного приложения не запраши
   const manifest = JSON.parse(fs.readFileSync(path.resolve(__dirname, '..', 'appinfo.json'), 'utf8'));
   assert.deepEqual(builder.validateManifest(manifest), builder.MANIFEST);
   assert.equal(manifest.id, 'org.lggate.launcher');
-  assert.equal(manifest.version, '0.1.6');
+  assert.equal(manifest.version, '0.1.7');
   assert.equal(manifest.handlesRelaunch, false);
   assert.equal(manifest.disableBackHistoryAPI, true);
   assert.throws(() => builder.validateManifest(Object.assign({}, manifest, { trustLevel: 'trusted' })), /неподтверждённые/);
@@ -44,6 +44,17 @@ test('Статические ресурсы TV-страницы самодост
   assert.throws(() => builder.validateReferences('<script src="https://example.test/app.js"></script>', ''), /внешний/);
   assert.throws(() => builder.validateReferences('', 'a { background: url(https://example.test/bg.png); }'), /внешний/);
   assert.throws(() => builder.validateReferences('', '@import "missing.css";'), /CSS-импорты/);
+});
+
+test('Все фоны и миниатюры из каталога входят в автономный пакет 0.1.7', () => {
+  const wallpaper = require('../wallpaper');
+  assert.equal(builder.ALLOWLIST.length, 35);
+  for (const option of wallpaper.OPTIONS) {
+    for (const resource of [wallpaper.BACKGROUNDS[option.id], option.thumbnail].filter(Boolean)) {
+      assert.ok(builder.ALLOWLIST.includes(resource), resource + ' должен входить в пакет');
+      assert.ok(fs.statSync(path.resolve(__dirname, '..', resource)).isFile(), resource + ' должен существовать');
+    }
+  }
 });
 
 test('Значки соответствуют размерам LG 80×80 и 130×130', () => {

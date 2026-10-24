@@ -11,6 +11,14 @@ const vm = require('node:vm');
 const { EventEmitter } = require('node:events');
 const { ALLOWLIST, MANIFEST } = require('../scripts/package-tv');
 const updater = require('../scripts/install-prepared-tv');
+const GALLERY_ASSETS = Object.freeze([
+  'assets/wallpapers/coast.webp', 'assets/wallpapers/city.webp', 'assets/wallpapers/zen.webp',
+  'assets/wallpapers/obsidian.webp', 'assets/wallpapers/orbit.webp', 'assets/wallpapers/aurora.webp', 'assets/wallpapers/holiday.webp',
+  'assets/wallpapers/northern-lake-thumb.webp', 'assets/wallpapers/morning-thumb.webp', 'assets/wallpapers/day-thumb.webp',
+  'assets/wallpapers/evening-thumb.webp', 'assets/wallpapers/night-thumb.webp',
+  'assets/wallpapers/coast-thumb.webp', 'assets/wallpapers/city-thumb.webp', 'assets/wallpapers/zen-thumb.webp',
+  'assets/wallpapers/obsidian-thumb.webp', 'assets/wallpapers/orbit-thumb.webp', 'assets/wallpapers/aurora-thumb.webp', 'assets/wallpapers/holiday-thumb.webp'
+]);
 const hash = value => crypto.createHash('sha256').update(value).digest('hex');
 const clone = value => JSON.parse(JSON.stringify(value));
 
@@ -74,7 +82,7 @@ function device() {
   const bootId = '12345678-1234-5678-90ab-1234567890ab';
   return {
     uid: '0', system: { returnValue: true, modelName: '55SM8200PLA', sdkVersion: '4.10.0', firmwareVersion: '05.40.97' },
-    app: { returnValue: true, appInfo: { id: updater.APP_ID, title: 'LG Gate', version: '0.1.5' } },
+    app: { returnValue: true, appInfo: { id: updater.APP_ID, title: 'LG Gate', version: '0.1.6' } },
     homebrew: { returnValue: true, appInfo: { id: 'org.webosbrew.hbchannel', version: '0.7.3' } },
     bootId, session: { version: 1, bootId, sessionId: '11223344556677889900aabb', sleeping: false }
   };
@@ -105,34 +113,56 @@ test('Импорт установщика не создаёт ни transport, н
   assert.equal(processes, 0);
 });
 
-test('План 0.1.6 строго отделён от wifi-handoff, а резерв 0.1.5 содержит прежние 15 файлов', t => {
+test('План 0.1.7 отделён от прежних handoff, а резерв 0.1.6 содержит ровно прежние 16 файлов', t => {
   const f = fixture(t);
   const previous = [
     'appinfo.json', 'index.html', 'portal.html', 'app.js', 'msx-catalog.js', 'platform.js', 'wallpaper.js', 'home-state.js', 'styles.css',
     'assets/wallpapers/morning.png', 'assets/wallpapers/day.png', 'assets/wallpapers/night.png',
+    'assets/wallpapers/northern-lake.png',
     'assets/mountain-sunset.png', 'assets/app-icon.png', 'assets/app-icon-large.png'
   ];
-  assert.equal(updater.VERSION, '0.1.6');
-  assert.equal(updater.ROLLBACK_VERSION, '0.1.5');
-  assert.equal(updater.PLAN_PATH, '.build/manual-wallpaper-handoff/install-plan.json');
-  assert.equal(updater.IPK_PATH, '.build/manual-wallpaper-handoff/org.lggate.launcher_0.1.6_all.ipk');
-  assert.equal(updater.ROLLBACK_PATH, '.build/manual-wallpaper-handoff/rollback/org.lggate.launcher_0.1.5_all.ipk');
+  assert.equal(updater.VERSION, '0.1.7');
+  assert.equal(updater.ROLLBACK_VERSION, '0.1.6');
+  assert.equal(updater.PLAN_PATH, '.build/wallpaper-gallery-handoff/install-plan.json');
+  assert.equal(updater.IPK_PATH, '.build/wallpaper-gallery-handoff/org.lggate.launcher_0.1.7_all.ipk');
+  assert.equal(updater.ROLLBACK_PATH, '.build/wallpaper-gallery-handoff/rollback/org.lggate.launcher_0.1.6_all.ipk');
   assert.deepEqual(updater.ROLLBACK_ALLOWLIST, previous);
   assert.equal(Object.isFrozen(updater.ROLLBACK_ALLOWLIST), true);
-  assert.deepEqual(ALLOWLIST.filter(filename => !previous.includes(filename)), ['assets/wallpapers/northern-lake.png']);
-  assert.equal(ALLOWLIST.length, 16);
+  assert.deepEqual(ALLOWLIST.filter(filename => !previous.includes(filename)).sort(), GALLERY_ASSETS.slice().sort());
+  assert.equal(Object.isFrozen(ALLOWLIST), true);
+  assert.equal(ALLOWLIST.length, 35);
   assert.deepEqual(updater.validatePackage(f.ready.bytes).map(entry => entry.path), ALLOWLIST);
   assert.deepEqual(updater.validatePackage(f.rollback.bytes, undefined, updater.ROLLBACK_VERSION).map(entry => entry.path), previous);
-  assert.equal(updater.validatePlan(f.plan, { root: f.root }).files.length, 16);
+  assert.equal(updater.validatePlan(f.plan, { root: f.root }).files.length, 35);
 });
 
-test('Нельзя смешать составы 16 и 15 файлов ни в плане, ни в архиве, даже с новыми digest', async t => {
+test('Локальная подготовка выводит план и все digest из байтов двух проверенных IPK', t => {
+  const f = fixture(t);
+  assert.deepEqual(updater.createPlan(f.ready.bytes, f.rollback.bytes), f.plan);
+  assert.deepEqual(updater.validatePlan(updater.createPlan(f.ready.bytes, f.rollback.bytes), { root: f.root }).files, f.plan.files);
+  assert.throws(() => updater.createPlan(f.rollback.bytes, f.ready.bytes));
+  assert.throws(() => updater.createPlan(Buffer.from('invalid'), f.rollback.bytes));
+  assert.throws(() => updater.createPlan(f.ready.bytes, Buffer.from('invalid')));
+});
+
+test('Каждый полный фон и миниатюра меню входят в точный состав обновления', () => {
+  const wallpaper = require('../wallpaper');
+  const full = Object.values(wallpaper.BACKGROUNDS).filter(Boolean);
+  const thumbnails = wallpaper.OPTIONS.map(option => option.thumbnail).filter(Boolean);
+  const expectedAssets = updater.ROLLBACK_ALLOWLIST.filter(filename => /\.(?:png|webp)$/.test(filename) && !filename.includes('app-icon')).concat(GALLERY_ASSETS).sort();
+  assert.equal(full.length, 12);
+  assert.equal(thumbnails.length, 12);
+  assert.deepEqual(full.concat(thumbnails).sort(), expectedAssets);
+  for (const asset of expectedAssets) assert.ok(ALLOWLIST.includes(asset), 'Не упакован ресурс меню: ' + asset);
+});
+
+test('Нельзя смешать составы 35 и 16 файлов ни в плане, ни в архиве, даже с новыми digest', async t => {
   const f = fixture(t);
   let created = 0;
   for (const mutate of [
     p => { p.files = clone(p.rollback.files); },
     p => { p.rollback.files = clone(p.files); },
-    p => { p.rollback.files[0].path = 'assets/wallpapers/northern-lake.png'; },
+    p => { p.rollback.files[0].path = 'assets/wallpapers/coast.webp'; },
     p => { p.files[0].path = 'assets/wallpapers/unapproved.png'; }
   ]) {
     const plan = clone(f.plan); mutate(plan);
@@ -156,20 +186,20 @@ test('Без флагов и с --dry-run выполняется только п
   let created = 0;
   for (const args of [[], ['--dry-run']]) {
     const result = await updater.main(args, { root: f.root, loadPlan: () => f.plan, createTransport: () => { created++; throw Error('network prohibited'); } });
-    assert.equal(result.mode, 'dry-run'); assert.equal(result.ready, true); assert.equal(result.fileCount, 16);
+    assert.equal(result.mode, 'dry-run'); assert.equal(result.ready, true); assert.equal(result.fileCount, 35);
   }
   assert.equal(created, 0);
   assert.deepEqual(updater.loadPlan(f.root), f.plan);
 });
 
-test('Откат по умолчанию только локально проверяет резерв 0.1.5 и все 15 файлов', async t => {
+test('Откат по умолчанию только локально проверяет резерв 0.1.6 и все 16 файлов', async t => {
   const f = fixture(t);
   let created = 0;
   for (const args of [['--rollback'], ['--rollback', '--dry-run']]) {
     const result = await updater.main(args, { root: f.root, createTransport: () => { created++; throw Error('network prohibited'); } });
-    assert.equal(result.mode, 'dry-run'); assert.equal(result.version, '0.1.5');
+    assert.equal(result.mode, 'dry-run'); assert.equal(result.version, '0.1.6');
     assert.equal(result.ipk, f.plan.rollback.ipk); assert.equal(result.sha256, f.plan.rollback.sha256);
-    assert.equal(result.fileCount, 15);
+    assert.equal(result.fileCount, 16);
     assert.equal(result.executeCommand, 'node scripts/install-prepared-tv.js --rollback --execute --tv-free');
   }
   assert.equal(created, 0);
@@ -228,7 +258,7 @@ test('Архив с лишним файлом или ссылкой не при�
   }
 });
 
-test('Резерв проверяется как IPK 0.1.5, а не просто существующий файл с верным digest', t => {
+test('Резерв проверяется как IPK 0.1.6, а не просто существующий файл с верным digest', t => {
   const f = fixture(t);
   for (const bytes of [Buffer.from('not an ipk'), ipk('0.1.3').bytes, ipk(updater.VERSION).bytes,
     ipk(updater.ROLLBACK_VERSION, [['unapproved-directory/', Buffer.alloc(0), '5']]).bytes]) {
@@ -244,6 +274,13 @@ test('Разрешены только SM8200PLA с необязательной 
   }
   for (const name of ['SM8200PLB', '55SM8200PLA.BRU', 'LG 55SM8200PLA', '5SM8200PLA', '1555SM8200PLA', '55SM8200PLA ', '55SM8200PLA\n']) {
     const d = device(); d.system.modelName = name; assert.throws(() => updater.validateDevice(d), /Модель/);
+  }
+});
+
+test('Preflight принимает прежнюю установленную 0.1.6 и повторную установку 0.1.7', () => {
+  for (const version of [updater.ROLLBACK_VERSION, updater.VERSION]) {
+    const d = device(); d.app.appInfo.version = version;
+    assert.equal(updater.validateDevice(d), d);
   }
 });
 
@@ -301,11 +338,11 @@ test('Явное выполнение соблюдает порядок prefligh
   assert.deepEqual(mock.names(), ['preflight', 'upload', 'sha256', 'install', 'verify', 'launch']);
   assert.equal(mock.calls[1].args[0], path.join(f.root, f.plan.ipk));
   assert.equal(mock.calls[1].args[1], '/tmp/lg-gate-update-' + updater.VERSION + '-' + f.plan.sha256.slice(0, 12) + '.ipk');
-  assert.equal(result.verified, true); assert.equal(result.launched, true); assert.equal(result.fileCount, 16);
+  assert.equal(result.verified, true); assert.equal(result.launched, true); assert.equal(result.fileCount, 35);
   assert.equal(mock.calls[4].args[1], updater.VERSION);
 });
 
-test('Явный откат передаёт резерв 0.1.5, проверяет его версию и каждый SHA до launch', async t => {
+test('Явный откат передаёт резерв 0.1.6, проверяет его версию и каждый SHA до launch', async t => {
   const f = fixture(t), mock = transport(f.plan, {
     sha256: async () => f.plan.rollback.sha256,
     verify: async () => ({ app: { returnValue: true, appInfo: { id: updater.APP_ID, title: 'LG Gate', version: updater.ROLLBACK_VERSION } }, hashes: Object.fromEntries(f.plan.rollback.files.map(entry => [entry.path, entry.sha256])) })
@@ -313,10 +350,10 @@ test('Явный откат передаёт резерв 0.1.5, проверя�
   const result = await updater.main(['--rollback', '--execute', '--tv-free'], { root: f.root, createTransport: () => mock.remote });
   assert.deepEqual(mock.names(), ['preflight', 'upload', 'sha256', 'install', 'verify', 'launch']);
   assert.equal(mock.calls[1].args[0], path.join(f.root, f.plan.rollback.ipk));
-  assert.equal(mock.calls[1].args[1], '/tmp/lg-gate-update-0.1.5-' + f.plan.rollback.sha256.slice(0, 12) + '.ipk');
+  assert.equal(mock.calls[1].args[1], '/tmp/lg-gate-update-0.1.6-' + f.plan.rollback.sha256.slice(0, 12) + '.ipk');
   assert.deepEqual(mock.calls[4].args[0], f.plan.rollback.files);
   assert.equal(mock.calls[4].args[1], updater.ROLLBACK_VERSION);
-  assert.equal(result.rollback, true); assert.equal(result.version, '0.1.5'); assert.equal(result.verified, true); assert.equal(result.fileCount, 15);
+  assert.equal(result.rollback, true); assert.equal(result.version, '0.1.6'); assert.equal(result.verified, true); assert.equal(result.fileCount, 16);
 });
 
 test('Неточная версия после отката не допускает launch', async t => {
@@ -343,6 +380,7 @@ test('Ошибка launch не выдаётся за подтверждённы�
 test('Реальный адаптер с fake spawn использует точные SSH/SCP опции и открытый stdin', async () => {
   const calls = [], children = [];
   const source = device();
+  const files = ipk().files;
   const remote = '/tmp/lg-gate-update-' + updater.VERSION + '-112233445566.ipk';
   const spawn = (executable, args, options) => {
     calls.push({ executable, args, options });
@@ -359,8 +397,9 @@ test('Реальный адаптер с fake spawn использует точ�
       else if (command.includes('getAppInfo')) stdout = JSON.stringify(command.includes('org.webosbrew.hbchannel') ? source.homebrew : source.app);
       else if (command === 'head -c 513 /tmp/lg-gate-session.json') stdout = JSON.stringify(source.session);
       else if (command === 'head -c 80 /proc/sys/kernel/random/boot_id') stdout = source.bootId + '\n';
-      else if (command.startsWith('sha256sum ')) stdout = 'a'.repeat(64) + '  ' + remote + '\n';
+      else if (command.startsWith('sha256sum ')) stdout = command.includes(updater.INSTALLED_ROOT) ? files.map(entry => entry.sha256 + '  ' + updater.INSTALLED_ROOT + '/' + entry.path).join('\n') : 'a'.repeat(64) + '  ' + remote + '\n';
       else if (command.includes('/dev/install')) stdout = JSON.stringify({ subscribed: true, returnValue: true }) + '\n' + JSON.stringify({ id: updater.APP_ID, details: { packageId: updater.APP_ID, state: 'installed' } });
+      else if (command.includes('applicationManager/launch')) stdout = JSON.stringify({ returnValue: true });
       child.stdout.emit('data', Buffer.from(stdout));
       child.emit('close', 0);
     });
@@ -371,16 +410,22 @@ test('Реальный адаптер с fake spawn использует точ�
   await adapter.upload('C:/prepared/app.ipk', remote);
   assert.equal(await adapter.sha256(remote), 'a'.repeat(64));
   assert.equal((await adapter.install(remote)).installed, true);
+  assert.deepEqual((await adapter.verify(files)).hashes, Object.fromEntries(files.map(entry => [entry.path, entry.sha256])));
+  assert.equal((await adapter.launch()).returnValue, true);
   assert.ok(calls.every(call => call.options.shell === false && call.options.windowsHide === true));
   assert.ok(calls.every(call => ['StrictHostKeyChecking=yes', 'BatchMode=yes', 'ConnectTimeout=8'].every(option => call.args.includes(option))));
   assert.equal(calls.find(call => call.executable === 'scp').args[0], '-O');
   assert.ok(calls.filter(call => call.executable === 'ssh').every(call => call.args.includes('lg-tv')));
   assert.ok(children.every(child => child.stdin.destroyed));
   assert.ok(calls.find(call => call.args.at(-1).includes('getSystemInfo')).args.at(-1).includes('"subscribe":false'));
-  assert.ok(calls.every(call => !/reboot|defaultApps|startup-enabled|kill -|\/bin\/sh/.test(call.args.at(-1))));
+  assert.equal(calls.length, 12);
+  assert.ok(calls.every(call => !/reboot|defaultApps|startup-enabled|kill -|\/bin\/sh|button|keyevent|lg-gate-runtime|\/var\/lib|settingsservice/i.test(call.args.at(-1))));
+  const commands = calls.filter(call => call.executable === 'ssh').map(call => call.args.at(-1));
+  const permittedReads = ['id -u', 'head -c 513 /tmp/lg-gate-session.json', 'head -c 80 /proc/sys/kernel/random/boot_id'];
+  assert.ok(commands.every(command => permittedReads.includes(command) || /^sha256sum (?:'[^']+'(?: |$))+$/.test(command) || /^luna-send -(?:n 1|i) -f '?luna:\/\/(?:com\.webos\.service\.tv\.systemproperty\/getSystemInfo|com\.webos\.applicationManager\/(?:getAppInfo|launch)|com\.webos\.appInstallService\/dev\/install)'? '\{.*\}'$/.test(command)), 'Нельзя добавлять команды Home, runtime, кнопок или настроек ТВ');
 });
 
-test('Адаптер проверяет SHA по версии: 16 файлов обновления и 15 файлов отката', async () => {
+test('Адаптер проверяет SHA по версии: 35 файлов обновления и 16 файлов отката', async () => {
   for (const version of [updater.VERSION, updater.ROLLBACK_VERSION]) {
     const files = ipk(version).files;
     const calls = [];
@@ -400,8 +445,9 @@ test('Адаптер проверяет SHA по версии: 16 файлов �
     assert.equal(calls.length, 2);
     assert.equal(calls.every(call => call.executable === 'ssh'), true);
     const command = calls[1].args.at(-1);
-    assert.equal(command.includes('/assets/wallpapers/northern-lake.png'), version === updater.VERSION);
-    assert.equal(Object.keys(result.hashes).length, version === updater.VERSION ? 16 : 15);
+    assert.equal(command.includes('/assets/wallpapers/northern-lake.png'), true);
+    assert.equal(command.includes('/assets/wallpapers/coast.webp'), version === updater.VERSION);
+    assert.equal(Object.keys(result.hashes).length, version === updater.VERSION ? 35 : 16);
   }
 });
 
@@ -410,7 +456,7 @@ test('Неизвестная версия и чужой состав прове�
   const adapter = updater.createTransport({ spawn() { calls++; throw Error('network prohibited'); } });
   for (const [files, version] of [
     [ipk().files, updater.ROLLBACK_VERSION], [ipk(updater.ROLLBACK_VERSION).files, updater.VERSION],
-    [ipk().files, '0.1.7'], [ipk().files.slice(1), updater.VERSION],
+    [ipk().files, '0.1.8'], [ipk().files.slice(1), updater.VERSION],
     [ipk().files.map((entry, index) => index ? entry : { ...entry, path: 'foreign.js' }), updater.VERSION],
     [ipk(updater.ROLLBACK_VERSION).files.map((entry, index) => index ? entry : { ...entry, sha256: 'invalid' }), updater.ROLLBACK_VERSION]
   ]) await assert.rejects(adapter.verify(files, version));
@@ -432,7 +478,7 @@ test('Подписка адаптера прекращает обработку 
   }
 });
 
-test('Адаптер принимает временный путь отката 0.1.5 и отклоняет прочие версии до spawn', async () => {
+test('Адаптер принимает временный путь отката 0.1.6 и отклоняет прочие версии до spawn', async () => {
   let spawned = 0;
   const adapter = updater.createTransport({ spawn() {
     spawned++;
@@ -443,7 +489,7 @@ test('Адаптер принимает временный путь отката
   const remote = '/tmp/lg-gate-update-' + updater.ROLLBACK_VERSION + '-112233445566.ipk';
   assert.equal((await adapter.install(remote)).installed, true);
   assert.equal(spawned, 1);
-  for (const invalid of [remote.replace('0.1.5', '0.1.4'), remote + '\n', '/tmp/../' + remote.slice(5)]) {
+  for (const invalid of [remote.replace('0.1.6', '0.1.5'), remote + '\n', '/tmp/../' + remote.slice(5)]) {
     await assert.rejects(adapter.install(invalid), /временный путь/);
   }
   assert.equal(spawned, 1);
