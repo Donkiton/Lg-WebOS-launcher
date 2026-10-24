@@ -11,14 +11,15 @@ const { ALLOWLIST, validateManifest } = require('./package-tv');
 
 const ROOT = path.resolve(__dirname, '..');
 const APP_ID = 'org.lggate.launcher';
-const VERSION = '0.1.6';
-const ROLLBACK_VERSION = '0.1.5';
-const PREPARED = '.build/manual-wallpaper-handoff/';
+const VERSION = '0.1.7';
+const ROLLBACK_VERSION = '0.1.6';
+const PREPARED = '.build/wallpaper-gallery-handoff/';
 // Freeze the previous release's exact file set independently of the current
-// builder. A rollback must neither require nor permit the new wallpaper.
+// builder. A rollback must neither require nor permit the new gallery assets.
 const ROLLBACK_ALLOWLIST = Object.freeze([
   'appinfo.json', 'index.html', 'portal.html', 'app.js', 'msx-catalog.js', 'platform.js', 'wallpaper.js', 'home-state.js', 'styles.css',
   'assets/wallpapers/morning.png', 'assets/wallpapers/day.png', 'assets/wallpapers/night.png',
+  'assets/wallpapers/northern-lake.png',
   'assets/mountain-sunset.png', 'assets/app-icon.png', 'assets/app-icon-large.png'
 ]);
 const PLAN_PATH = PREPARED + 'install-plan.json';
@@ -138,7 +139,7 @@ function validatePackage(data, entries, version = VERSION) {
   const manifest = JSON.parse(files.get(prefix + 'appinfo.json').toString('utf8'));
   if (manifest.version !== version) throw Error('Версия appinfo.json не соответствует подготовленному пакету.');
   // The rollback keeps the same approved manifest schema. Only its explicitly
-  // checked previous version differs; the builder remains strict for 0.1.6.
+  // checked previous version differs; the builder remains strict for 0.1.7.
   validateManifest({ ...manifest, version: VERSION });
   const info = JSON.parse(files.get(packageInfo).toString('utf8'));
   if (info.id !== APP_ID || info.app !== APP_ID || info.version !== version) throw Error('packageinfo.json не соответствует LG Gate.');
@@ -154,6 +155,18 @@ function validateEntries(entries, version = VERSION) {
     if (!allowlist.includes(entry.path) || seen.has(entry.path) || !validHash(entry.sha256)) throw Error('Неизвестный путь, повтор или SHA256 файла в плане.');
     seen.add(entry.path);
   }
+}
+
+// Pure local preparation: derive every digest from the actual package bytes.
+// The caller writes the result only after placing both validated IPKs at the
+// fixed paths below. This helper never invokes the TV transport or writes files.
+function createPlan(packageData, rollbackData) {
+  return {
+    schema: 1, appId: APP_ID, version: VERSION, ipk: IPK_PATH,
+    sha256: hash(packageData), files: validatePackage(packageData),
+    rollback: { ipk: ROLLBACK_PATH, sha256: hash(rollbackData), files: validatePackage(rollbackData, undefined, ROLLBACK_VERSION) },
+    expectedDevice: { ...EXPECTED_DEVICE }
+  };
 }
 
 function validatePlan(plan, options = {}) {
@@ -191,7 +204,7 @@ function validateDevice(device, expected = EXPECTED_DEVICE) {
   if (!object(device) || device.uid !== '0') throw Error('Для обновления требуется существующий root-доступ.');
   const system = device.system;
   if (!object(system) || system.returnValue !== true || typeof system.modelName !== 'string' || system.modelName.trim() !== system.modelName || !/^(?:[0-9]{2,3})?SM8200PLA$/.test(system.modelName) || system.firmwareVersion !== expected.firmwareVersion || system.sdkVersion !== expected.sdkVersion) throw Error('Модель, прошивка или webOS телевизора не совпадает с проверенной конфигурацией.');
-  appInfo(device.app, APP_ID, ['0.1.0', '0.1.1', '0.1.2', '0.1.3', '0.1.4', ROLLBACK_VERSION, VERSION]);
+  appInfo(device.app, APP_ID, ['0.1.0', '0.1.1', '0.1.2', '0.1.3', '0.1.4', '0.1.5', ROLLBACK_VERSION, VERSION]);
   appInfo(device.homebrew, 'org.webosbrew.hbchannel', [expected.homebrewVersion]);
   const marker = device.session;
   if (typeof device.bootId !== 'string' || device.bootId.length !== 36 || !UUID.test(device.bootId) || !object(marker) || marker.version !== 1 || marker.bootId !== device.bootId || typeof marker.sessionId !== 'string' || marker.sessionId.length !== 24 || !/^[0-9a-f]{24}$/.test(marker.sessionId) || marker.sleeping !== false) throw Error('Нет действующего wake marker текущего включения. Требуется отдельная проверка runtime; автоматическая установка остановлена.');
@@ -377,4 +390,4 @@ async function main(argv = [], deps = {}) {
 
 if (require.main === module) main(process.argv.slice(2)).then(result => console.log(JSON.stringify(result, null, 2))).catch(error => { console.error(error.message); process.exitCode = 1; });
 
-module.exports = { main, loadPlan, validatePlan, validatePackage, validateDevice, install, createTransport, APP_ID, VERSION, ROLLBACK_VERSION, ROLLBACK_ALLOWLIST, EXPECTED_DEVICE, PLAN_PATH, IPK_PATH, ROLLBACK_PATH, INSTALLED_ROOT };
+module.exports = { main, loadPlan, createPlan, validatePlan, validatePackage, validateDevice, install, createTransport, APP_ID, VERSION, ROLLBACK_VERSION, ROLLBACK_ALLOWLIST, EXPECTED_DEVICE, PLAN_PATH, IPK_PATH, ROLLBACK_PATH, INSTALLED_ROOT };

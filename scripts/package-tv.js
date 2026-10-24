@@ -19,10 +19,19 @@ const ALLOWLIST = Object.freeze([
   'appinfo.json', 'index.html', 'portal.html', 'app.js', 'msx-catalog.js', 'platform.js', 'wallpaper.js', 'home-state.js', 'styles.css',
   'assets/wallpapers/morning.png', 'assets/wallpapers/day.png', 'assets/wallpapers/night.png',
   'assets/wallpapers/northern-lake.png',
+  'assets/wallpapers/coast.webp', 'assets/wallpapers/coast-thumb.webp',
+  'assets/wallpapers/city.webp', 'assets/wallpapers/city-thumb.webp',
+  'assets/wallpapers/zen.webp', 'assets/wallpapers/zen-thumb.webp',
+  'assets/wallpapers/obsidian.webp', 'assets/wallpapers/obsidian-thumb.webp',
+  'assets/wallpapers/orbit.webp', 'assets/wallpapers/orbit-thumb.webp',
+  'assets/wallpapers/aurora.webp', 'assets/wallpapers/aurora-thumb.webp',
+  'assets/wallpapers/holiday.webp', 'assets/wallpapers/holiday-thumb.webp',
+  'assets/wallpapers/northern-lake-thumb.webp', 'assets/wallpapers/morning-thumb.webp',
+  'assets/wallpapers/day-thumb.webp', 'assets/wallpapers/evening-thumb.webp', 'assets/wallpapers/night-thumb.webp',
   'assets/mountain-sunset.png', 'assets/app-icon.png', 'assets/app-icon-large.png'
 ]);
 const MANIFEST = Object.freeze({
-  id: 'org.lggate.launcher', version: '0.1.6', type: 'web', main: 'index.html', title: 'LG Gate',
+  id: 'org.lggate.launcher', version: '0.1.7', type: 'web', main: 'index.html', title: 'LG Gate',
   icon: 'assets/app-icon.png', largeIcon: 'assets/app-icon-large.png', iconColor: '#0b1726',
   resolution: '1920x1080', disableBackHistoryAPI: true, handlesRelaunch: false, transparent: false
 });
