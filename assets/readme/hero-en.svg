@@ -1,0 +1,55 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="300" viewBox="0 0 1200 300" role="img" aria-labelledby="title desc" xml:lang="en">
+  <title id="title">LG Gate — Six favorites. One home screen.</title>
+  <desc id="desc">A schematic LG webOS home screen with a clock, six app cards and a focused first card.</desc>
+  <rect width="1200" height="300" rx="24" fill="#0b1726"/>
+  <g id="project-title" font-family="'Segoe UI', 'Microsoft YaHei', 'Yu Gothic', 'Meiryo', sans-serif">
+    <text x="54" y="112" fill="#f8fafc" font-size="78" font-weight="600" letter-spacing="-3">LG Gate</text>
+    <text x="56" y="170" fill="#b9e3ff" font-size="32">Six favorites.</text>
+    <text x="56" y="215" fill="#b9e3ff" font-size="32">One home screen.</text>
+    <text x="57" y="263" fill="#bac4d0" font-size="19" letter-spacing="1">webOS · v0.1.7</text>
+  </g>
+  <g id="home-screen-schematic">
+    <rect x="680" y="34" width="474" height="232" rx="18" fill="#111f30"/>
+    <path d="M681 151h472" stroke="#d8a775" stroke-width="2" opacity=".55"/>
+    <path d="M681 154h472v110H681z" fill="#0e1a29"/>
+    <text x="710" y="109" fill="#f8fafc" font-family="'Segoe UI', 'Microsoft YaHei', 'Yu Gothic', 'Meiryo', sans-serif" font-size="46" font-weight="300">11:20</text>
+    <g id="home-actions" fill="none" stroke="#bac4d0" stroke-width="2">
+      <rect x="1034" y="67" width="8" height="8" rx="1"/>
+      <rect x="1048" y="67" width="8" height="8" rx="1"/>
+      <rect x="1034" y="81" width="8" height="8" rx="1"/>
+      <rect x="1048" y="81" width="8" height="8" rx="1"/>
+      <circle cx="1105" cy="79" r="18" stroke="#b9e3ff"/>
+      <path d="M1097 79h16m-8-8v16"/>
+    </g>
+    <g id="app-card-1">
+      <rect x="708" y="174" width="60" height="49" rx="10" fill="#e5f3fd" stroke="#b9e3ff" stroke-width="3"/>
+      <path d="M732 188l16 10-16 10z" fill="#18354b"/>
+      <rect x="708" y="235" width="60" height="16" rx="6" fill="#b9e3ff" opacity=".12"/>
+    </g>
+    <g id="app-card-2">
+      <rect x="778" y="174" width="60" height="49" rx="10" fill="#20364b"/>
+      <path d="M802 188l16 10-16 10z" fill="#8ba9bf"/>
+      <rect x="778" y="235" width="60" height="16" rx="6" fill="#35516a" opacity=".12"/>
+    </g>
+    <g id="app-card-3">
+      <rect x="848" y="174" width="60" height="49" rx="10" fill="#20364b"/>
+      <path d="M872 188l16 10-16 10z" fill="#8ba9bf"/>
+      <rect x="848" y="235" width="60" height="16" rx="6" fill="#35516a" opacity=".12"/>
+    </g>
+    <g id="app-card-4">
+      <rect x="918" y="174" width="60" height="49" rx="10" fill="#20364b"/>
+      <path d="M942 188l16 10-16 10z" fill="#8ba9bf"/>
+      <rect x="918" y="235" width="60" height="16" rx="6" fill="#35516a" opacity=".12"/>
+    </g>
+    <g id="app-card-5">
+      <rect x="988" y="174" width="60" height="49" rx="10" fill="#20364b"/>
+      <path d="M1012 188l16 10-16 10z" fill="#8ba9bf"/>
+      <rect x="988" y="235" width="60" height="16" rx="6" fill="#35516a" opacity=".12"/>
+    </g>
+    <g id="app-card-6">
+      <rect x="1058" y="174" width="60" height="49" rx="10" fill="#20364b"/>
+      <path d="M1082 188l16 10-16 10z" fill="#8ba9bf"/>
+      <rect x="1058" y="235" width="60" height="16" rx="6" fill="#35516a" opacity=".12"/>
+    </g>
+  </g>
+</svg>
