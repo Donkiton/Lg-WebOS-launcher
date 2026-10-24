@@ -14,7 +14,7 @@
 
 LG webOS 向けのホーム画面。お気に入りのアプリ6つを並べ、リモコンで操作でき、ローカルの壁紙も選べます。
 
-[**0.1.7 をダウンロード**](dist/org.lggate.launcher_0.1.7_all.ipk?raw=true) · [インストールと元に戻す手順（ロシア語）](docs/INSTALLATION.md) · [SHA256](dist/SHA256SUMS.txt)
+[**リリース 0.1.7 をダウンロード**](https://github.com/Donkiton/Lg-WebOS-launcher/releases/tag/v0.1.7) · [ZIP からインストール（ロシア語）](docs/QUICKSTART.md) · [root 用 USB ツール（ロシア語）](docs/ROOTING.md) · [SHA256](https://github.com/Donkiton/Lg-WebOS-launcher/releases/download/v0.1.7/SHA256SUMS.txt)
 
 > [!WARNING]
 > **動作確認済みの機種は LG SM8200PLA のみです。**
@@ -73,7 +73,7 @@ LG webOS 向けのホーム画面。お気に入りのアプリ6つを並べ、�
 
 ## テレビにインストールする
 
-**root 権限と Homebrew Channel が必要です。** root 権限を取得するツールは含まれていません。
+**root 権限と Homebrew Channel が必要です。** リリースにはビルド済み IPK とインストール用 ZIP が含まれ、ソースのビルドは不要です。オリジナルの DejaVuln Autoroot 0.0.10 USB アーカイブは別の添付ファイルです。使用前に[互換性と root の手順（ロシア語）](docs/ROOTING.md)を確認し、[ZIP インストールガイド（ロシア語）](docs/QUICKSTART.md)から始めてください。
 
 機種とバージョンが上記の構成と一致することを確認し、IPK をダウンロードして、[手順書（ロシア語）](docs/INSTALLATION.md)に従ってください：インストール → Home の割り当て → 自動起動の有効化。ボタンの設定と元に戻す手順も同じ文書にあります。コールドブート後は、ランチャーの前に Live TV が表示される場合があります。
 

@@ -14,7 +14,7 @@
 
 Ein Startbildschirm für LG webOS mit sechs Lieblings-Apps, Navigation per Fernbedienung und lokal gespeicherten Hintergrundbildern zur Auswahl.
 
-[**0.1.7 herunterladen**](dist/org.lggate.launcher_0.1.7_all.ipk?raw=true) · [Installation und Rücknahme der Änderungen (Russisch)](docs/INSTALLATION.md) · [SHA256](dist/SHA256SUMS.txt)
+[**Release 0.1.7 herunterladen**](https://github.com/Donkiton/Lg-WebOS-launcher/releases/tag/v0.1.7) · [Installation aus ZIP (Russisch)](docs/QUICKSTART.md) · [Root-USB-Datei (Russisch)](docs/ROOTING.md) · [SHA256](https://github.com/Donkiton/Lg-WebOS-launcher/releases/download/v0.1.7/SHA256SUMS.txt)
 
 > [!WARNING]
 > **Nur auf dem LG SM8200PLA getestet.**
@@ -73,7 +73,7 @@ Die sieben neuen Szenen heißen **Meeresküste**, **Nach dem Regen**, **Japanisc
 
 ## Auf dem Fernseher installieren
 
-**Root-Zugriff und Homebrew Channel sind erforderlich.** Werkzeuge zum Erlangen des Root-Zugriffs sind nicht enthalten.
+**Root-Zugriff und Homebrew Channel sind erforderlich.** Das Release enthält ein fertiges IPK und ein Installations-ZIP; ein eigener Build ist nicht nötig. Das originale USB-Archiv DejaVuln Autoroot 0.0.10 liegt separat bei. Vor der Verwendung bitte [Kompatibilität und Root-Anleitung (Russisch)](docs/ROOTING.md) prüfen. Beginne mit der [ZIP-Installationsanleitung (Russisch)](docs/QUICKSTART.md).
 
 Vergleiche Modell und Versionen mit der oben genannten Konfiguration, lade die IPK-Datei herunter und folge der [Schritt-für-Schritt-Anleitung (Russisch)](docs/INSTALLATION.md): installieren → Home zuweisen → Autostart aktivieren. Dort findest du auch die Tastenkonfiguration und das Vorgehen zum Rückgängigmachen der Änderungen. Nach einem Kaltstart kann vor dem Launcher noch Live TV erscheinen.
 

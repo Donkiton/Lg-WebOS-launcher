@@ -1,0 +1,52 @@
+name: Опубликовать релиз
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Версия из appinfo.json, без префикса v
+        required: true
+        default: '0.1.7'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: github-release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    if: github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
+    runs-on: ubuntu-latest
+    env:
+      INPUT_VERSION: ${{ inputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+      - name: Проверить версию
+        run: node -e 'if (process.env.INPUT_VERSION !== require("./appinfo.json").version) throw Error("Версия не соответствует appinfo.json")'
+      - run: npm ci --ignore-scripts
+      - run: npm test
+      - run: npm run release:prepare -- --with-root-tool
+      - name: Опубликовать новый выпуск
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        shell: bash
+        run: |
+          if gh api "repos/${GH_REPO}/git/ref/tags/v${INPUT_VERSION}" >/dev/null 2>&1; then
+            echo '::error::Тег уже существует; публикация остановлена'
+            exit 1
+          fi
+          gh release create "v${INPUT_VERSION}" \
+            --target "$GITHUB_SHA" \
+            --title "LG Gate ${INPUT_VERSION} — установочный комплект" \
+            --notes-file "release/NOTES-v${INPUT_VERSION}.md" \
+            ".build/releases/v${INPUT_VERSION}/"*

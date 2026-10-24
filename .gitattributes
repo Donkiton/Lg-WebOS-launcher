@@ -5,5 +5,7 @@
 *.html text eol=lf
 *.json text eol=lf
 *.md text eol=lf
+LICENSE text eol=lf
+*.yml text eol=lf
 *.png binary
 *.ipk binary
