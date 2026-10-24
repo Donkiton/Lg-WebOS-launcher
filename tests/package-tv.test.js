@@ -77,5 +77,5 @@ test('Официальный упаковщик вызывается без ми
   assert.equal(args[0], '--no-minify');
   assert.equal(args[1], '--outdir');
   assert.equal(args[args.length - 1], builder.STAGE_DIRECTORY);
-  assert.ok(!args.some(arg => /install|launch|ssh|device/.test(arg)));
+  assert.deepEqual(args, ['--no-minify', '--outdir', path.resolve(__dirname, '..', 'dist'), builder.STAGE_DIRECTORY]);
 });

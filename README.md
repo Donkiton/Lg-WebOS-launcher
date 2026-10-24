@@ -14,7 +14,7 @@
 
 Домашний экран для LG webOS: шесть любимых приложений, управление пультом и выбор локального фона.
 
-[**Скачать 0.1.7**](dist/org.lggate.launcher_0.1.7_all.ipk?raw=true) · [Установка и откат](docs/INSTALLATION.md) · [SHA256](dist/SHA256SUMS.txt)
+[**Скачать релиз 0.1.7**](https://github.com/Donkiton/Lg-WebOS-launcher/releases/tag/v0.1.7) · [Установка из ZIP](docs/QUICKSTART.md) · [USB-файл для root](docs/ROOTING.md) · [SHA256](https://github.com/Donkiton/Lg-WebOS-launcher/releases/download/v0.1.7/SHA256SUMS.txt)
 
 > [!WARNING]
 > **Проверено только на LG SM8200PLA.**
@@ -73,9 +73,9 @@
 
 ## Установка на ТВ
 
-Нужны **root-доступ и Homebrew Channel**. Получение root в комплект не входит.
+Нужны **root-доступ и Homebrew Channel**. В [релизе 0.1.7](https://github.com/Donkiton/Lg-WebOS-launcher/releases/tag/v0.1.7) есть готовый IPK и ZIP с инструментами настройки; отдельно приложен исходный USB-архив DejaVuln Autoroot 0.0.10. Совместимость и порядок получения root описаны [отдельно](docs/ROOTING.md).
 
-Сверь модель и версии выше, скачай IPK и следуй [пошаговой инструкции](docs/INSTALLATION.md): установка → назначение Home → автозапуск. Там же — настройка кнопок и откат. После холодного старта перед лаунчером пока может появляться Live TV.
+Сверь модель и версии выше, скачай `lg-gate_0.1.7_install.zip` и следуй [пошаговой инструкции](docs/QUICKSTART.md): SSH → установка IPK → назначение Home → автозапуск. Сборка из исходников не нужна. В [полной инструкции](docs/INSTALLATION.md) — настройка кнопок и откат. После холодного старта перед лаунчером пока может появляться Live TV.
 
 ## Предпросмотр на ПК
 

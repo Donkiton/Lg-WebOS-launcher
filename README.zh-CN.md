@@ -14,7 +14,7 @@
 
 适用于 LG webOS 的主屏幕：六款常用应用、遥控器导航，以及可自由选择的本地壁纸。
 
-[**下载 0.1.7**](dist/org.lggate.launcher_0.1.7_all.ipk?raw=true) · [安装与回退（俄语）](docs/INSTALLATION.md) · [SHA256](dist/SHA256SUMS.txt)
+[**下载 0.1.7 发行版**](https://github.com/Donkiton/Lg-WebOS-launcher/releases/tag/v0.1.7) · [从 ZIP 安装（俄语）](docs/QUICKSTART.md) · [root USB 工具（俄语）](docs/ROOTING.md) · [SHA256](https://github.com/Donkiton/Lg-WebOS-launcher/releases/download/v0.1.7/SHA256SUMS.txt)
 
 > [!WARNING]
 > **仅在 LG SM8200PLA 上通过测试。**
@@ -73,7 +73,7 @@
 
 ## 安装到电视
 
-需要 **root 权限和 Homebrew Channel**。本项目不提供获取 root 权限的工具。
+需要 **root 权限和 Homebrew Channel**。发行版提供已编译的 IPK 和安装 ZIP，无需自行编译。原版 DejaVuln Autoroot 0.0.10 USB 压缩包作为独立附件提供；使用前请阅读[兼容性和 root 指南（俄语）](docs/ROOTING.md)。从 [ZIP 安装指南（俄语）](docs/QUICKSTART.md)开始。
 
 确认电视型号和版本与上述配置一致后，下载 IPK，并按照[分步指南（俄语）](docs/INSTALLATION.md)操作：安装 → 设置 Home 键 → 启用开机自动启动。指南还介绍了按键设置和回退方法。冷启动后，在启动器出现前仍可能短暂显示 Live TV。
 

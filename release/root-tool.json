@@ -1,0 +1,271 @@
+{
+  "name": "DejaVuln Autoroot",
+  "version": "0.0.10",
+  "release": "https://github.com/throwaway96/dejavuln-autoroot/releases/tag/v0.0.10",
+  "commit": "8573d2a43a8aa2c213f6c25336fd1919a0a4260c",
+  "assets": [
+    {
+      "name": "dejavuln-autoroot-0.0.10.zip",
+      "url": "https://github.com/throwaway96/dejavuln-autoroot/releases/download/v0.0.10/dejavuln-autoroot-0.0.10.zip",
+      "sha256": "83f39e95ec702e6370df65bde16acced9861a87e473f763a9e55de948aa7756f"
+    },
+    {
+      "name": "dejavuln-autoroot-AGPL-3.0.txt",
+      "url": "https://raw.githubusercontent.com/throwaway96/dejavuln-autoroot/8573d2a43a8aa2c213f6c25336fd1919a0a4260c/COPYING",
+      "sha256": "0d96a4ff68ad6d4b6f1f30f713b18d5184912ba8dd389f86aa7710db079abcb0"
+    }
+  ],
+  "sources": [
+    {
+      "name": "dejavuln-autoroot-0.0.10-source.tar.gz",
+      "url": "https://github.com/throwaway96/dejavuln-autoroot/archive/8573d2a43a8aa2c213f6c25336fd1919a0a4260c.tar.gz",
+      "sha256": "f16a13bfbb58871b018201e1a50f5ceee177fc72e6d72906a0a47f7655e5a931"
+    },
+    {
+      "name": "webos-homebrew-channel-0.7.3-source.tar.gz",
+      "url": "https://github.com/webosbrew/webos-homebrew-channel/archive/92fcf9fef7ce08dbeae3b0616df8d0c75c11f0b3.tar.gz",
+      "sha256": "d3881f4e02d5db4456d22937045c2e36a37548ab7c2a6a15a7fc1065daf45075"
+    },
+    {
+      "name": "busybox-1.36.1.tar.bz2",
+      "url": "https://busybox.net/downloads/busybox-1.36.1.tar.bz2",
+      "sha256": "b8cc24c9574d809e7279c3be349795c5d5ceb6fdf19ca709f80cde50e47de314"
+    },
+    {
+      "name": "rsync-3.2.7.tar.gz",
+      "url": "https://github.com/WayneD/rsync/archive/refs/tags/v3.2.7.tar.gz",
+      "sha256": "4f2a350baa93dc666078b84bc300767a77789ca12f0dec3cb4b3024971f8ef47"
+    },
+    {
+      "name": "dropbear-2022.83.tar.gz",
+      "url": "https://github.com/mkj/dropbear/archive/refs/tags/DROPBEAR_2022.83.tar.gz",
+      "sha256": "e02c5c36eb53bfcd3f417c6e40703a50ec790a1a772269ea156a2ccef14998d2"
+    },
+    {
+      "name": "openssh-9.1p1.tar.gz",
+      "url": "https://cdn.openbsd.org/pub/OpenBSD/OpenSSH/portable/openssh-9.1p1.tar.gz",
+      "sha256": "19f85009c7e3e23787f0236fbb1578392ab4d4bf9f8ec5fe6bc1cd7e8bfdd288"
+    },
+    {
+      "name": "enyojs-enyo-514d966a1465e93aae0c3ba96ce64c570b161e53.tar.gz",
+      "url": "https://github.com/enyojs/enyo/archive/514d966a1465e93aae0c3ba96ce64c570b161e53.tar.gz",
+      "sha256": "899011a9726fb6fa4f45811432c63f1cacb1f141fca0dc96c40c5f7aefb72691"
+    },
+    {
+      "name": "enyojs-enyo-ilib-8c26cea5ea6eb0e393f00b96c8af0eac8cc0387a.tar.gz",
+      "url": "https://github.com/enyojs/enyo-ilib/archive/8c26cea5ea6eb0e393f00b96c8af0eac8cc0387a.tar.gz",
+      "sha256": "f62bc67cb3aba38bda9ef6869a4a7a6a0d433282386701dc5a17564eb3d440ba"
+    },
+    {
+      "name": "enyojs-enyo-webos-eff99a6f78eed8a0828988eb1bea59ea7efba9cc.tar.gz",
+      "url": "https://github.com/enyojs/enyo-webos/archive/eff99a6f78eed8a0828988eb1bea59ea7efba9cc.tar.gz",
+      "sha256": "fbdd26c23da0ac78177399ffd5a3ac054c75b6ce8550a96fe55e0d6e7d2235d4"
+    },
+    {
+      "name": "enyojs-layout-77803c63b0858c86ceefdce922f67fce12abdd34.tar.gz",
+      "url": "https://github.com/enyojs/layout/archive/77803c63b0858c86ceefdce922f67fce12abdd34.tar.gz",
+      "sha256": "31be2d4aa4d8dbcc9ee06fadb8003741cd2040b49274a313f495c6b58c7590ea"
+    },
+    {
+      "name": "enyojs-moonstone-7348fbb47cac3757edc97ed513adebbd605eacf1.tar.gz",
+      "url": "https://github.com/enyojs/moonstone/archive/7348fbb47cac3757edc97ed513adebbd605eacf1.tar.gz",
+      "sha256": "cbd2e65b68e8339b77bd5b5beee6b3ea2dc3ec2f611466fd891de8bfacbc7bcd"
+    },
+    {
+      "name": "enyojs-spotlight-0589121de0810dfb3ad5d90ea59563ec3a303d4b.tar.gz",
+      "url": "https://github.com/enyojs/spotlight/archive/0589121de0810dfb3ad5d90ea59563ec3a303d4b.tar.gz",
+      "sha256": "78ab7aabe7fb905363fe0c28100df412dbbaf791e91dcded6bf863fa3dd8878f"
+    },
+    {
+      "name": "enyojs-svg-860ed9e6014820b1715b5d99817a0faa3683020a.tar.gz",
+      "url": "https://github.com/enyojs/svg/archive/860ed9e6014820b1715b5d99817a0faa3683020a.tar.gz",
+      "sha256": "bd97a0e500620ecb3e9cb08b51b03a21e8f452f0637992c312214c8cf484540b"
+    },
+    {
+      "name": "throwaway96-node-load-cert-dir-b1943cb64ccb5851c6c8885892716638d954b3f6.tar.gz",
+      "url": "https://github.com/throwaway96/node-load-cert-dir/archive/b1943cb64ccb5851c6c8885892716638d954b3f6.tar.gz",
+      "sha256": "cb706136b30cfca9de2c6d91126472186089df58cda542d57430d8d61a7d154e"
+    },
+    {
+      "name": "npm-bluebird-3.7.2.tgz",
+      "url": "https://registry.npmjs.org/bluebird/-/bluebird-3.7.2.tgz",
+      "sha256": "c68b0b2a44f58961277e975053c6f0053d93bac8f68cef9dae596f2a04806ddc"
+    },
+    {
+      "name": "npm-core-js-3.36.0.tgz",
+      "url": "https://registry.npmjs.org/core-js/-/core-js-3.36.0.tgz",
+      "sha256": "bfb3c6f30030e055cd6bdd3524a9f7571fbb72286bc6591edad07a3513101bdb"
+    },
+    {
+      "name": "npm-core-util-is-1.0.3.tgz",
+      "url": "https://registry.npmjs.org/core-util-is/-/core-util-is-1.0.3.tgz",
+      "sha256": "4430fdc71f2cf3b5e297113b9a692da2d6cff96cf84da00f0ecef5e5a6e74d0c"
+    },
+    {
+      "name": "npm-define-data-property-1.1.4.tgz",
+      "url": "https://registry.npmjs.org/define-data-property/-/define-data-property-1.1.4.tgz",
+      "sha256": "16304ad73df1364ca8623c28a8969de01cd7189b4f9b05668fadb598f110e4d2"
+    },
+    {
+      "name": "npm-define-properties-1.2.1.tgz",
+      "url": "https://registry.npmjs.org/define-properties/-/define-properties-1.2.1.tgz",
+      "sha256": "5de7e3804fadee9d773cd494b695e6efedfee8837e751fd9b9b77c3e9c6b40f4"
+    },
+    {
+      "name": "npm-dompurify-3.0.1.tgz",
+      "url": "https://registry.npmjs.org/dompurify/-/dompurify-3.0.1.tgz",
+      "sha256": "05666c15db8128917dc0d8a954fe47b8b6a7dea20a600997baa0327ccd093902"
+    },
+    {
+      "name": "npm-es-define-property-1.0.0.tgz",
+      "url": "https://registry.npmjs.org/es-define-property/-/es-define-property-1.0.0.tgz",
+      "sha256": "ee6fd697496db9143f7d45126322ab8210922541afd4c3eb600724679982a1fc"
+    },
+    {
+      "name": "npm-es-errors-1.3.0.tgz",
+      "url": "https://registry.npmjs.org/es-errors/-/es-errors-1.3.0.tgz",
+      "sha256": "d14dd1c35b4bd3b8aca3219fd3627eb7f3eb49cf6b4c8a7ca58b91fd7a190993"
+    },
+    {
+      "name": "npm-function-bind-1.1.2.tgz",
+      "url": "https://registry.npmjs.org/function-bind/-/function-bind-1.1.2.tgz",
+      "sha256": "704402651b02a1454f17d445fc7dd716efc282d059407126d58ef30a47e807aa"
+    },
+    {
+      "name": "npm-get-intrinsic-1.2.4.tgz",
+      "url": "https://registry.npmjs.org/get-intrinsic/-/get-intrinsic-1.2.4.tgz",
+      "sha256": "2831ff80a482fd9badcbae0dc7ee6986aed32b65f07968e111273f737fd0b5c7"
+    },
+    {
+      "name": "npm-gopd-1.0.1.tgz",
+      "url": "https://registry.npmjs.org/gopd/-/gopd-1.0.1.tgz",
+      "sha256": "9c9010d9d387ecc92aebc028aca5ce8a954006274a605f96b55e15a57f4c2643"
+    },
+    {
+      "name": "npm-has-property-descriptors-1.0.2.tgz",
+      "url": "https://registry.npmjs.org/has-property-descriptors/-/has-property-descriptors-1.0.2.tgz",
+      "sha256": "0219bbd8f32e268eeb6efff55a2c6ff2d502098f49c583ff023b2d9d5a8bfa87"
+    },
+    {
+      "name": "npm-has-proto-1.0.3.tgz",
+      "url": "https://registry.npmjs.org/has-proto/-/has-proto-1.0.3.tgz",
+      "sha256": "5d61691a37cfb53d935216756b667d3e0ee638631dd519c242cf09aa8581d82b"
+    },
+    {
+      "name": "npm-has-symbols-1.0.3.tgz",
+      "url": "https://registry.npmjs.org/has-symbols/-/has-symbols-1.0.3.tgz",
+      "sha256": "ddcc17682f1e12a9d00a1a8b656af941ed584914e55fc5caf1c2e7ce892ce6a6"
+    },
+    {
+      "name": "npm-hasown-2.0.1.tgz",
+      "url": "https://registry.npmjs.org/hasown/-/hasown-2.0.1.tgz",
+      "sha256": "1481f59c51826a93bf14548da76365638bf0d3aec7c882073e9dc7785c7e837e"
+    },
+    {
+      "name": "npm-inherits-2.0.4.tgz",
+      "url": "https://registry.npmjs.org/inherits/-/inherits-2.0.4.tgz",
+      "sha256": "d94dbc6c1bb3c5ac0fb12a73ade187108fc60de273a1b754f55044eb5e24afaf"
+    },
+    {
+      "name": "npm-isarray-1.0.0.tgz",
+      "url": "https://registry.npmjs.org/isarray/-/isarray-1.0.0.tgz",
+      "sha256": "e23c76f14f5222e07e39d89858b61e8e33f96956de9e0df3659cbdf8db950c87"
+    },
+    {
+      "name": "npm-node-fetch-2.6.7.tgz",
+      "url": "https://registry.npmjs.org/node-fetch/-/node-fetch-2.6.7.tgz",
+      "sha256": "2e324daf5a20e92f679046740fc316d076e41c34470e21893d9d337a0849e484"
+    },
+    {
+      "name": "npm-object-keys-1.1.1.tgz",
+      "url": "https://registry.npmjs.org/object-keys/-/object-keys-1.1.1.tgz",
+      "sha256": "9678d9055619767c8a134033709e88a6e0a19600f3d3f2cda40acdfd75e7f212"
+    },
+    {
+      "name": "npm-process-nextick-args-2.0.1.tgz",
+      "url": "https://registry.npmjs.org/process-nextick-args/-/process-nextick-args-2.0.1.tgz",
+      "sha256": "425bf8c725d23bc5ac76bcedd10d9cdbbd6354c7273dd7def44417cfbca8889b"
+    },
+    {
+      "name": "npm-progress-stream-2.0.0.tgz",
+      "url": "https://registry.npmjs.org/progress-stream/-/progress-stream-2.0.0.tgz",
+      "sha256": "9c520b2406f25a5fbc295d9d338b96b6c9e69f7314a64544dd52fd6f8853ec77"
+    },
+    {
+      "name": "npm-readable-stream-2.3.8.tgz",
+      "url": "https://registry.npmjs.org/readable-stream/-/readable-stream-2.3.8.tgz",
+      "sha256": "1648613948f68ac9cbbe8f72a3f93a67ecdb862ffb57946a2c0bbb5a1479a532"
+    },
+    {
+      "name": "npm-safe-buffer-5.1.2.tgz",
+      "url": "https://registry.npmjs.org/safe-buffer/-/safe-buffer-5.1.2.tgz",
+      "sha256": "e09206c60fccafb952c854af7629cbb031a98d6da2e143fb3aa3c8a48402aa22"
+    },
+    {
+      "name": "npm-regenerator-runtime-0.14.1.tgz",
+      "url": "https://registry.npmjs.org/regenerator-runtime/-/regenerator-runtime-0.14.1.tgz",
+      "sha256": "7e8df38fb205ed668cb38d9d9b154ba3ea14786b0480c21f26f3a95b90497c20"
+    },
+    {
+      "name": "npm-speedometer-1.0.0.tgz",
+      "url": "https://registry.npmjs.org/speedometer/-/speedometer-1.0.0.tgz",
+      "sha256": "7ed7d3af46f6a1609fc27abc58883073a21e0de13df1044780e67543cf9ffe37"
+    },
+    {
+      "name": "npm-stream.finished-1.2.0.tgz",
+      "url": "https://registry.npmjs.org/stream.finished/-/stream.finished-1.2.0.tgz",
+      "sha256": "460517fac8910b8f4edf0bd6bab4cb9d5c4a539d627189b139dbdd7f45428c7b"
+    },
+    {
+      "name": "npm-stream.pipeline-shim-1.1.0.tgz",
+      "url": "https://registry.npmjs.org/stream.pipeline-shim/-/stream.pipeline-shim-1.1.0.tgz",
+      "sha256": "c4cf7a9e7c69919b265deac1adc1df28a3fab66368cba30b646a9516b52adf66"
+    },
+    {
+      "name": "npm-string_decoder-1.1.1.tgz",
+      "url": "https://registry.npmjs.org/string_decoder/-/string_decoder-1.1.1.tgz",
+      "sha256": "af8262434508fa8292407f7fef4690d19eabb73387ca230b41f2a1155216963a"
+    },
+    {
+      "name": "npm-through2-2.0.5.tgz",
+      "url": "https://registry.npmjs.org/through2/-/through2-2.0.5.tgz",
+      "sha256": "9da7074faffd6a71ebb9387e5f7833158d7b3b174b05dc92d9c77f2a56a9c3b9"
+    },
+    {
+      "name": "npm-xtend-4.0.2.tgz",
+      "url": "https://registry.npmjs.org/xtend/-/xtend-4.0.2.tgz",
+      "sha256": "bd22a01d43c799be7bb53dfa9e775b132045e39525e51efb977528a00041ba48"
+    },
+    {
+      "name": "npm-tr46-0.0.3.tgz",
+      "url": "https://registry.npmjs.org/tr46/-/tr46-0.0.3.tgz",
+      "sha256": "164ae1eb32cea353551bbc7f9358dcaae4ffabbe65ec37a92ca464a9570a2a0a"
+    },
+    {
+      "name": "npm-util-deprecate-1.0.2.tgz",
+      "url": "https://registry.npmjs.org/util-deprecate/-/util-deprecate-1.0.2.tgz",
+      "sha256": "79a1de983c1b393180c47456d6b73caab278a00ea6e37d5c6675f2dcdec2a3e5"
+    },
+    {
+      "name": "npm-webidl-conversions-3.0.1.tgz",
+      "url": "https://registry.npmjs.org/webidl-conversions/-/webidl-conversions-3.0.1.tgz",
+      "sha256": "e4dfc34b40947c2cf0038cd95fa6de21f4dac93224a7ad8e169205f5c2e22da8"
+    },
+    {
+      "name": "webosose-nodejs-module-webos-service-1dd2c9d6cd21eb5d84f7619432ed6d2784bb56f9.tar.gz",
+      "url": "https://github.com/webosose/nodejs-module-webos-service/archive/1dd2c9d6cd21eb5d84f7619432ed6d2784bb56f9.tar.gz",
+      "sha256": "2ab88fc2202775821ea2abd81f1270ed5bbf134a810684ddb1262a1d1336fcb9"
+    },
+    {
+      "name": "npm-whatwg-url-5.0.0.tgz",
+      "url": "https://registry.npmjs.org/whatwg-url/-/whatwg-url-5.0.0.tgz",
+      "sha256": "b09dc471f573a876eeac3902b8c1da62af5cdbbca2c6fba4a06f119f89cb7ed3"
+    },
+    {
+      "name": "dompurify-3.0.1-source.tar.gz",
+      "url": "https://github.com/cure53/DOMPurify/archive/e42464f0e06ab5899aae41c89920be9af8b2e826.tar.gz",
+      "sha256": "317fbb72063e4dfbd1347b883193d59c274c791c8c6d63719a3b62d050887732"
+    }
+  ],
+  "sourceBundle": "dejavuln-autoroot-0.0.10-corresponding-source.zip"
+}

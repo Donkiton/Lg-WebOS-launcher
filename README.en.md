@@ -14,7 +14,7 @@
 
 A home screen for LG webOS with six favorite apps, remote control navigation, and a choice of local wallpapers.
 
-[**Download 0.1.7**](dist/org.lggate.launcher_0.1.7_all.ipk?raw=true) · [Installation and rollback (Russian)](docs/INSTALLATION.md) · [SHA256](dist/SHA256SUMS.txt)
+[**Download release 0.1.7**](https://github.com/Donkiton/Lg-WebOS-launcher/releases/tag/v0.1.7) · [Install from ZIP (Russian)](docs/QUICKSTART.md) · [Root USB tool (Russian)](docs/ROOTING.md) · [SHA256](https://github.com/Donkiton/Lg-WebOS-launcher/releases/download/v0.1.7/SHA256SUMS.txt)
 
 > [!WARNING]
 > **Tested only on LG SM8200PLA.**
@@ -73,7 +73,7 @@ The seven new scenes are **Seashore**, **After the Rain**, **Japanese Garden**, 
 
 ## Install on your TV
 
-**Root access and Homebrew Channel are required.** Rooting tools are not included.
+**Root access and Homebrew Channel are required.** The release includes a ready-to-install IPK and an installer ZIP. The original DejaVuln Autoroot 0.0.10 USB archive is a separate asset; check [compatibility and rooting instructions (Russian)](docs/ROOTING.md) before using it. Start with the [ZIP installation guide (Russian)](docs/QUICKSTART.md); no source build is needed.
 
 Check your model and versions against the configuration above, download the IPK, and follow the [step-by-step guide (Russian)](docs/INSTALLATION.md): install → assign Home → enable startup launch. The guide also covers button configuration and rollback. After a cold boot, Live TV may still appear before the launcher.
 
