@@ -90,3 +90,11 @@ npm start
 Öffne **<http://127.0.0.1:4173>**. App-Starts und Netzwerkverhalten werden in der Vorschau simuliert. Der auf dem Fernseher installierte Launcher benötigt keinen Server auf deinem Computer.
 
 Weitere Dokumentation auf Russisch: [Installation, Paketbau und Rücknahme der Änderungen](docs/INSTALLATION.md) · [technische Notizen](docs/DEVELOPMENT.md) · [Designgeschichte](DESIGN.md).
+
+## Lizenz
+
+Autor und Urheberrechtsinhaber der ursprünglichen LG-Gate-Materialien ist **Битюцкий Вадим Алексеевич (DonKiton)**. Das Projekt wird unter der proprietären **LG Gate Proprietary Source License v1.1** bereitgestellt.
+
+Einzelpersonen dürfen die Software unter den Lizenzbedingungen für persönliche, nichtkommerzielle Zwecke nutzen, untersuchen, ändern und kostenlos weitergeben. Bei der Weitergabe müssen der vollständige Lizenztext und die Urheberhinweise erhalten bleiben. Die Kopie oder Änderung ist als inoffiziell zu kennzeichnen; wesentliche Änderungen und deren Urheber sind anzugeben. Bei der Weitergabe von Binärdateien muss auch der zugehörige Quellcode bereitgestellt werden. **Kommerzielle Nutzung und Nutzung durch Organisationen erfordern eine vorherige schriftliche Genehmigung und eine gesonderte Lizenzvereinbarung**, auch für geänderte Versionen.
+
+Die vollständigen Bedingungen stehen in [LICENSE](LICENSE). Genehmigungen können unter [menfise@mail.ru](mailto:menfise@mail.ru) angefragt werden. Für Komponenten und Materialien Dritter gelten weiterhin deren eigene Lizenzen und die Rechte der jeweiligen Rechteinhaber.
