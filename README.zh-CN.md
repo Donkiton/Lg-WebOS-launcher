@@ -1,8 +1,8 @@
 # LG Gate
 
 <p align="center">
-  <a href="README.md"><img src="assets/readme/lang-en.svg" height="32" alt="English"></a>
   <a href="README.ru.md"><img src="assets/readme/lang-ru.svg" height="32" alt="Русский"></a>
+  <a href="README.md"><img src="assets/readme/lang-en.svg" height="32" alt="English"></a>
   <a href="README.zh-CN.md"><img src="assets/readme/lang-zh-active.svg" height="32" alt="中文 — 当前语言"></a>
   <a href="README.ja.md"><img src="assets/readme/lang-ja.svg" height="32" alt="日本語"></a>
   <a href="README.de.md"><img src="assets/readme/lang-de.svg" height="32" alt="Deutsch"></a>
