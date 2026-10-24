@@ -53,8 +53,11 @@ function verifiedIPK() {
     .filter(line => line.endsWith('  ' + IPK_NAME));
   if (record.length !== 1 || record[0] !== hash(data) + '  ' + IPK_NAME) throw Error('SHA256 опубликованного IPK не совпала.');
   // The transformed HTML and every other packaged byte must match this commit.
-  const { stage } = builder.stageApplication();
-  const files = builder.ALLOWLIST.map(filename => ({ path: filename, sha256: hash(fs.readFileSync(path.join(stage, filename))) }));
+  const files = builder.ALLOWLIST.map(filename => {
+    const source = read(filename);
+    const contents = filename === 'index.html' ? Buffer.from(builder.stripPreviewScript(source.toString('utf8'))) : source;
+    return { path: filename, sha256: hash(contents) };
+  });
   validatePackage(data, files);
   return { data, files, sha256: hash(data) };
 }
