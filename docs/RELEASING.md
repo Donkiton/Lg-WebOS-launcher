@@ -29,6 +29,7 @@ npm run release:prepare -- --with-root-tool
 | `org.lggate.launcher_0.1.7_all.ipk` | Проверенное приложение для ТВ |
 | `lg-gate_0.1.7_install.zip` | IPK, инструменты Home/автозапуска и инструкции |
 | `INSTALLATION.md`, `ROOTING.md` | Инструкции, доступные без распаковки |
+| `LG-Gate-LICENSE.txt` | Полные условия использования оригинальных материалов LG Gate; копия есть и внутри ZIP |
 | `dejavuln-autoroot-0.0.10.zip` | Неизменённый USB-архив upstream |
 | `dejavuln-autoroot-AGPL-3.0.txt`, `ROOT-TOOL-NOTICES.md` | Лицензия и происхождение |
 | `dejavuln-autoroot-0.0.10-corresponding-source.zip` | Исходники и рецепты upstream-компонентов |
@@ -48,3 +49,5 @@ npm run release:prepare -- --with-root-tool
 При локальной публикации используйте GitHub CLI: создайте релиз с тегом `v0.1.7`, точным merge commit и описанием `release/NOTES-v0.1.7.md`, загрузив **все** файлы из выходной папки. После загрузки скачайте assets в отдельную папку и сравните SHA256. Не отправляйте `.build/` в Git.
 
 Сборка и публикация не включают SSH-подключение к телевизору. Факт публикации не считается новой проверкой установки на реальном устройстве.
+
+В описании релиза укажите лицензию LG Gate и ссылку на соответствующий исходный архив тега. Автоматические архивы `Source code` GitHub содержат исходники LG Gate; companion-архив DejaVuln относится к отдельному стороннему инструменту.

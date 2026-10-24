@@ -13,7 +13,7 @@ const VERSION = builder.MANIFEST.version;
 const IPK_NAME = builder.MANIFEST.id + '_' + VERSION + '_all.ipk';
 const OUTPUT = '.build/releases/v' + VERSION;
 const BUNDLE_FILES = Object.freeze([
-  'package-lock.json', 'docs/QUICKSTART.md', 'docs/INSTALLATION.md', 'docs/ROOTING.md',
+  'LICENSE', 'package-lock.json', 'docs/QUICKSTART.md', 'docs/INSTALLATION.md', 'docs/ROOTING.md',
   'scripts/manage-tv-home.js', 'scripts/manage-tv-startup.js',
   'scripts/manage-tv-optimizations.js', 'scripts/manage-tv-remote.js',
   'scripts/install-prepared-tv.js', 'scripts/package-tv.js',
@@ -71,7 +71,7 @@ function bundleContents(ipk) {
   pkg.engines = { node: '>=20' };
   contents.set('package.json', Buffer.from(JSON.stringify(pkg, null, 2) + '\n'));
   contents.set('dist/' + IPK_NAME, ipk.data);
-  contents.set('README.md', Buffer.from('# LG Gate ' + VERSION + '\n\nНачните с [пошаговой установки](docs/QUICKSTART.md).\n\nStart with docs/QUICKSTART.md (Russian). Requires an already rooted compatible LG TV, Node.js 20+, and OpenSSH on the computer. No build or Git clone is needed.\n\nRoot USB tools are separate release assets; see docs/ROOTING.md. Nothing runs automatically when this ZIP is extracted.\n'));
+  contents.set('README.md', Buffer.from('# LG Gate ' + VERSION + '\n\nНачните с [пошаговой установки](docs/QUICKSTART.md).\n\nStart with docs/QUICKSTART.md (Russian). Requires an already rooted compatible LG TV, Node.js 20+, and OpenSSH on the computer. No build or Git clone is needed.\n\nRoot USB tools are separate release assets; see docs/ROOTING.md. Nothing runs automatically when this ZIP is extracted.\n\nАвтор LG Gate: Битюцкий Вадим Алексеевич (DonKiton), 2026. Полные условия личного некоммерческого использования — в LICENSE. Commercial and organizational use require written permission. Third-party components retain their own licenses.\n\nCorresponding LG Gate source: https://github.com/Donkiton/Lg-WebOS-launcher/archive/refs/tags/v' + VERSION + '.zip\n'));
   contents.set('SHA256SUMS.txt', Buffer.from([...contents].sort(([a], [b]) => a.localeCompare(b)).map(([name, data]) => hash(data) + '  ' + name).join('\n') + '\n'));
   return contents;
 }
@@ -113,7 +113,7 @@ function writeZIP(output, name, contents, prefix = '') {
 
 async function prepareRelease(withRootTool = false, outputRelative = OUTPUT) {
   const ipk = verifiedIPK();
-  const assets = new Map([[IPK_NAME, ipk.data], ['INSTALLATION.md', read('docs/QUICKSTART.md')], ['ROOTING.md', read('docs/ROOTING.md')]]);
+  const assets = new Map([[IPK_NAME, ipk.data], ['INSTALLATION.md', read('docs/QUICKSTART.md')], ['ROOTING.md', read('docs/ROOTING.md')], ['LG-Gate-LICENSE.txt', read('LICENSE')]]);
   let upstream, sourceContents;
   if (withRootTool) {
     upstream = JSON.parse(read('release/root-tool.json'));

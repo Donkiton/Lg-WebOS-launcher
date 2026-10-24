@@ -15,7 +15,7 @@ test('Релиз сохраняет проверенный IPK и сверяет
   const bundle = release.bundleContents(ipk);
   assert.equal(bundle.get('dist/' + release.IPK_NAME), ipk.data);
   for (const name of bundle.keys()) assert.doesNotMatch(name, /(?:^|\/)(?:\.ssh|\.build|node_modules|preview-catalog\.js|install-plan\.json)(?:\/|$)/);
-  for (const name of ['scripts/manage-tv-home.js', 'scripts/manage-tv-startup.js', 'tv/launcher-startup.py', 'docs/QUICKSTART.md', 'docs/ROOTING.md', 'package-lock.json']) assert.ok(bundle.has(name), name);
+  for (const name of ['LICENSE', 'scripts/manage-tv-home.js', 'scripts/manage-tv-startup.js', 'tv/launcher-startup.py', 'docs/QUICKSTART.md', 'docs/ROOTING.md', 'package-lock.json']) assert.ok(bundle.has(name), name);
   const pkg = JSON.parse(bundle.get('package.json'));
   assert.deepEqual(Object.keys(pkg.scripts), ['devices']);
   assert.equal(pkg.devDependencies['@webos-tools/cli'], '3.2.6');
