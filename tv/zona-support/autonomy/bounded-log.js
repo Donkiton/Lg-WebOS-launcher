@@ -1,0 +1,3 @@
+'use strict';
+var fs=require('fs');
+module.exports=function(filename){return function(value){var line=JSON.stringify(value)+'\n';if(Buffer.byteLength(line)>8192)line=JSON.stringify({stage:'log-entry-truncated',bytes:Buffer.byteLength(line)})+'\n';if(!filename)return console.log(line.trim());try{var size=fs.existsSync(filename)?fs.statSync(filename).size:0;if(size+Buffer.byteLength(line)>131072){if(fs.existsSync(filename+'.1'))fs.unlinkSync(filename+'.1');if(fs.existsSync(filename))fs.renameSync(filename,filename+'.1');}fs.appendFileSync(filename,line,'utf8');}catch(error){process.stderr.write('lg-gate-zona: log write failed\n');}};};
