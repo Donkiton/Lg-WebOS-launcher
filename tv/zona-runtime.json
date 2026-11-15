@@ -1,0 +1,150 @@
+{
+  "version": "zona-providers-20261115.1",
+  "entries": [
+    {
+      "path": "autonomy/bounded-cache.js",
+      "sha256": "a2596451f283f9c6b76c55d794bf19af991f7af370769cca95a88fd0fb0ec5d7",
+      "source": "tv/zona-support/autonomy/bounded-cache.js"
+    },
+    {
+      "path": "autonomy/bounded-log.js",
+      "sha256": "f0af0bbb7dfaee886dabb15e56b56e031c9fa904ee42342432a02a0e119bfeb0",
+      "source": "tv/zona-support/autonomy/bounded-log.js"
+    },
+    {
+      "path": "autonomy/graphic-cache.js",
+      "sha256": "442211e84718933744a0c976b18a36fefcb699605f4702810bfe16d408493b5e",
+      "source": "tv/zona-support/autonomy/graphic-cache.js"
+    },
+    {
+      "path": "autonomy/kinogo/kinogo.js",
+      "sha256": "2eff2dab15320e80e1ae4f5fc87dc8986aa94d8bed967b7e0f8dc8c618383a0f",
+      "source": "tv/zona-support/autonomy/kinogo/kinogo.js"
+    },
+    {
+      "path": "autonomy/kinogo/promise.js",
+      "sha256": "e1059a2a1789ff36bc1c5c2ce05e5c4d80967a150fa9bf3842c06c9b77d1627b",
+      "source": "tv/zona-support/autonomy/kinogo/promise.js"
+    },
+    {
+      "path": "autonomy/loader-merge.js",
+      "sha256": "9bc6007e628d79d783bc674915458aa50d507322386157bcb4b35e20ab8a9aab",
+      "source": "tv/zona-support/autonomy/loader-merge.js"
+    },
+    {
+      "path": "autonomy/loader-native.js",
+      "sha256": "45df30ca4cf76da2a1a8ff1fae286b88927dbc83e9c4f2ac7cac0fe201848966",
+      "source": "tv/zona-loader-native.js"
+    },
+    {
+      "path": "autonomy/media-relay.js",
+      "sha256": "f03c850474c61425c6aac456d57d406090941fe5cfd4e72ccf2b961a2ae35528",
+      "source": "tv/zona-media-relay.js"
+    },
+    {
+      "path": "autonomy/native-api.js",
+      "sha256": "320144405ec8c460271736dfc7ceaa8c4084d8363614bdae7d38e5d590daf175",
+      "source": "tv/zona-native-api.js"
+    },
+    {
+      "path": "autonomy/native-catalog.js",
+      "sha256": "2fb8ee5a7694fc16ed2836cecf6eabc36a664216407e2dd123d41ae84663f656",
+      "source": "tv/zona-native-catalog.js"
+    },
+    {
+      "path": "autonomy/native-client.js",
+      "sha256": "6a55692ce4b12a07789b21fb015d0a225705589ca59e4bd4d09978414770e7e4",
+      "source": "tv/zona-support/autonomy/native-client.js"
+    },
+    {
+      "path": "autonomy/native-streams.js",
+      "sha256": "e5c3cb1d62d30c4c54d7e93759ac7d5890e48297aa666da4d9ca6d9bba0bc2e2",
+      "source": "tv/zona-native-streams.js"
+    },
+    {
+      "path": "autonomy/persistent-image-cache.js",
+      "sha256": "8ee6f4d42c82cb47c7a16cf0611e674a02f98ecaf4f1336bb3f0eaf992b8f7c0",
+      "source": "tv/zona-support/autonomy/persistent-image-cache.js"
+    },
+    {
+      "path": "autonomy/player-patch.js",
+      "sha256": "fe9bf8fbe5f014621da7467ef1ba6515c5a323edf0e49f17fc24132eb52702af",
+      "source": "tv/zona-player-patch.js"
+    },
+    {
+      "path": "autonomy/portable/index.js",
+      "sha256": "8b784efb9acc374623d0441b83c17f7e38666998b86d2e3c99f30fc4721b2f29",
+      "source": "tv/zona-support/autonomy/portable/index.js"
+    },
+    {
+      "path": "autonomy/portable/runtime-ir.json",
+      "sha256": "fa3bcc1b844387ea920abd234b90cc9b1367501051abdbb093ad76c17fbd4e6d",
+      "source": "tv/zona-support/autonomy/portable/runtime-ir.json"
+    },
+    {
+      "path": "autonomy/portable/vendor/long.LICENSE",
+      "sha256": "3ddf9be5c28fe27dad143a5dc76eea25222ad1dd68934a047064e56ed2fa40c5",
+      "source": "tv/zona-support/autonomy/portable/vendor/long.LICENSE"
+    },
+    {
+      "path": "autonomy/portable/vendor/long.js",
+      "sha256": "9168c134b7bcc7670bd511ce7569ffb364c088bf1602f88fba0792c8dd7289ae",
+      "source": "tv/zona-support/autonomy/portable/vendor/long.js"
+    },
+    {
+      "path": "autonomy/portable/vendor/pako.LICENSE",
+      "sha256": "a04665b3b2de56c66730c1f720f528175739e4104f79073614aa611da1e85539",
+      "source": "tv/zona-support/autonomy/portable/vendor/pako.LICENSE"
+    },
+    {
+      "path": "autonomy/portable/vendor/pako_inflate.js",
+      "sha256": "ec7e5936c652800e132c63cc1fcd00c23103a6a10a294ed3736bab70e38fc592",
+      "source": "tv/zona-support/autonomy/portable/vendor/pako_inflate.js"
+    },
+    {
+      "path": "autonomy/portal-image-patch.js",
+      "sha256": "e5a1c83930c9771eb5c526a76fd1b7b4c1817678cdb2b6d4ba425a37ac5a65e1",
+      "source": "tv/zona-portal-image-patch.js"
+    },
+    {
+      "path": "autonomy/provider-addon.js",
+      "sha256": "7b0e43d470ebc6c87cb5448fdbe69e0edef3602228d7c1e41c77cddd0839abc2",
+      "source": "tv/zona-provider-addon.js"
+    },
+    {
+      "path": "autonomy/provider-extra.js",
+      "sha256": "c4bf908da65dc7c4e04de906111b81069f4aee440f0a276d71a8eba956a917ce",
+      "source": "tv/zona-provider-extra.js"
+    },
+    {
+      "path": "autonomy/provider-rezka.js",
+      "sha256": "53a788e9c182f68cd8f345b74a51bcf23f5a6ab0a5779c77d3ea74331e6452ff",
+      "source": "tv/zona-provider-rezka.js"
+    },
+    {
+      "path": "autonomy/request.js",
+      "sha256": "74a0655759e9ab6a814342f369813ce584dd382a8be9f9e64fd424bcc0d21196",
+      "source": "tv/zona-http-request.js"
+    },
+    {
+      "path": "autonomy/runtime/ca-provenance.json",
+      "sha256": "4a898df1f3d36ff68ab3a5d5ce0a0d4947f9484dd36bebf45aa58bedfeae858e",
+      "source": "tv/zona-support/autonomy/runtime/ca-provenance.json"
+    },
+    {
+      "path": "autonomy/runtime/public-ca.pem",
+      "sha256": "1ce54871c3e0e16c534d4cf464847113d55412fe48c3d5d881c600dd6932debd",
+      "source": "tv/zona-support/autonomy/runtime/public-ca.pem"
+    },
+    {
+      "path": "autonomy/service.js",
+      "sha256": "7c48de8e49a03a934c993d6a56cc7949331605a150caaac26b20694d1b7545c5",
+      "source": "tv/zona-service.js"
+    },
+    {
+      "path": "vendor/loader-original.js",
+      "sha256": "7cbe0478a9e7d9254e7991d58ad29368bece5e3910095cb0bdbe4a53c86c6d74",
+      "url": "https://kinoserial.online/loader.js"
+    }
+  ]
+}

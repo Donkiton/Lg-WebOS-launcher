@@ -9,3 +9,8 @@ LICENSE text eol=lf
 *.yml text eol=lf
 *.png binary
 *.ipk binary
+
+# Runtime source snapshots have fixed SHA256 values; preserve original bytes.
+tv/zona-*.js -text
+tv/zona-support/** -text
+tv/zona-runtime.json text eol=lf

@@ -1,0 +1,6 @@
+{
+  "source": "Public root CAs bundled with local Node.js",
+  "node": "v24.14.0",
+  "certificates": 144,
+  "sha256": "1ce54871c3e0e16c534d4cf464847113d55412fe48c3d5d881c600dd6932debd"
+}
