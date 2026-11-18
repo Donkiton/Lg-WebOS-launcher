@@ -2,7 +2,7 @@
 
 // Shared Android metadata transport. All execution stays on the TV's Node 0.12;
 // no Android process, account credentials or external computer is required.
-var DEFAULT_HOST = 'https://apirn1.mzona.net';
+var DIRECT_HOSTS = ['https://apiwn1.mzona.net', 'https://apirn1.mzona.net'];
 var DEFAULT_AGENT = 'Zona/3.0.77 (Android unknown)';
 // Catalog endpoints accept JSON even though the native source list uses its
 // legacy parameter codec. A common codec for all endpoints returns HTTP 500.
@@ -23,40 +23,42 @@ function create(options) {
   if (typeof http !== 'function' || !portable || typeof portable.makeTransport !== 'function' || typeof portable.encodeParams !== 'function') {
     throw new TypeError('Native API requires HTTP and portable transport');
   }
-  var host = options.host || DEFAULT_HOST;
-  if (host !== DEFAULT_HOST && host !== 'https://apiwn1.mzona.net') throw new TypeError('Unsupported native API host');
+  if (options.host && DIRECT_HOSTS.indexOf(options.host) < 0) throw new TypeError('Unsupported native API host');
+  var hosts = options.host ? [options.host] : DIRECT_HOSTS.slice();
   var agent = DEFAULT_AGENT;
   var now = options.now || Date.now;
   var later = options.setTimeout || setTimeout;
   var cancel = options.clearTimeout || clearTimeout;
-  var queue = [], active = 0, clock = null, clockWaiters = null;
+  var queue = [], active = 0, clocks = Object.create(null);
   var totals = { completed: 0, failed: 0, clockRequests: 0 };
 
-  function aligned(callback) {
-    var age = clock ? now() - clock.saved : -1;
-    if (clock && age >= 0 && age < 300000) return callback(null, now() + clock.offset);
-    if (clockWaiters) { clockWaiters.push(callback); return; }
-    clockWaiters = [callback];
+  function aligned(host, callback) {
+    var clock = clocks[host] || (clocks[host] = { saved: null, offset: 0, waiters: null });
+    var age = clock.saved === null ? -1 : now() - clock.saved;
+    if (age >= 0 && age < 300000) return callback(null, now() + clock.offset);
+    if (clock.waiters) { clock.waiters.push(callback); return; }
+    clock.waiters = [callback];
     totals.clockRequests++;
     var settled = false, handle = null;
+    var clockDeadline = hosts.length > 1 ? 4000 : 10000;
     var timer = later(function () {
       finish(failure('NATIVE_CLOCK_TIMEOUT'));
       if (handle && typeof handle.abort === 'function') handle.abort();
-    }, 10000);
+    }, clockDeadline);
     function finish(error, response) {
       if (settled) return;
       settled = true;
       cancel(timer);
       var time = response && response.headers && Date.parse(response.headers.date);
       if (!error && (!response || response.statusCode !== 200 || !isFinite(time))) error = failure('NATIVE_CLOCK_INVALID');
-      if (!error) clock = { saved: now(), offset: time - now() };
-      var callbacks = clockWaiters;
-      clockWaiters = null;
+      if (!error) { clock.saved = now(); clock.offset = time - clock.saved; }
+      var callbacks = clock.waiters;
+      clock.waiters = null;
       callbacks.forEach(function (cb) { cb(error, error ? null : now() + clock.offset); });
     }
     try {
-      handle = http({ url: host + '/getTime', method: 'HEAD', headers: { 'User-Agent': agent }, timeoutMs: 9000,
-        maxBytes: 16384, stage: 'native-clock' }, finish);
+      handle = http({ url: host + '/getTime', method: 'HEAD', headers: { 'User-Agent': agent }, timeoutMs: clockDeadline - 500,
+        maxBytes: 16384, stage: 'native-clock', redirectPolicy: 'same-origin' }, finish);
     } catch (error) { finish(failure('NATIVE_CLOCK_FAILED')); }
   }
 
@@ -83,10 +85,20 @@ function create(options) {
     pump();
     job.callback(error, value);
   }
-  function run(job) {
-    aligned(function (error, time) {
-      if (job.done) return;
-      if (error) return complete(job, error);
+  function run(job, index) {
+    index = index || 0;
+    var host = hosts[index];
+    job.attempt = index;
+    job.handle = null;
+    function current() { return !job.done && job.attempt === index; }
+    function failed(error, retry) {
+      if (!current()) return;
+      if (retry && index + 1 < hosts.length) return run(job, index + 1);
+      complete(job, error);
+    }
+    aligned(host, function (error, time) {
+      if (!current()) return;
+      if (error) return failed(error, true);
       var generated, payload, address;
       try {
         generated = portable.makeTransport(time, agent);
@@ -94,18 +106,22 @@ function create(options) {
         address = host + job.path + '?params=' + encodeURIComponent(payload) + '&client_time=' + encodeURIComponent(generated.client_time);
       } catch (badTransport) { complete(job, failure('NATIVE_TRANSPORT_FAILED')); return; }
       try {
-        job.handle = http({ url: address, headers: { 'User-Agent': agent, Cookie: generated.cookie,
+        var timeout = hosts.length === 1 ? 18000 : (index === 0 ? 7000 : 10000);
+        var handle = http({ url: address, headers: { 'User-Agent': agent, Cookie: generated.cookie,
           'Content-Type': 'application/json', Accept: 'application/json' }, maxBytes: 4 * 1024 * 1024,
-          timeoutMs: 18000, stage: 'native' + job.path }, function (requestError, response) {
-          if (job.done) return;
-          if (requestError) return complete(job, failure('NATIVE_REQUEST_FAILED'));
-          if (!response || response.statusCode !== 200) return complete(job, failure('NATIVE_HTTP_ERROR', response && response.statusCode));
+          timeoutMs: timeout, stage: 'native' + job.path, redirectPolicy: 'same-origin' }, function (requestError, response) {
+          if (!current()) return;
+          if (requestError) return failed(failure('NATIVE_REQUEST_FAILED'), true);
+          var status = response && response.statusCode;
+          if (status !== 200) return failed(failure('NATIVE_HTTP_ERROR', status),
+            !status || status === 408 || status === 429 || status >= 500);
           var value;
-          try { value = JSON.parse(response.body.toString('utf8')); } catch (badJson) { return complete(job, failure('NATIVE_JSON_INVALID')); }
+          try { value = JSON.parse(response.body.toString('utf8')); } catch (badJson) { return failed(failure('NATIVE_JSON_INVALID'), true); }
           if (!value || typeof value !== 'object' || Array.isArray(value) || value.error) return complete(job, failure('NATIVE_RESPONSE_INVALID'));
           complete(job, null, value);
         });
-      } catch (requestError) { complete(job, failure('NATIVE_REQUEST_FAILED')); }
+        if (current()) job.handle = handle;
+      } catch (requestError) { failed(failure('NATIVE_REQUEST_FAILED'), true); }
     });
   }
   function request(path, params, callback) {
@@ -129,7 +145,7 @@ function create(options) {
   return {
     request: request, sourceTypes: sourceTypes.slice(),
     stats: function () { return { active: active, queued: queue.length, completed: totals.completed, failed: totals.failed,
-      clockRequests: totals.clockRequests, host: host }; }
+      clockRequests: totals.clockRequests, host: hosts[0], mirrors: hosts.slice() }; }
   };
 }
 
