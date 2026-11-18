@@ -6,11 +6,11 @@ const path = require('node:path');
 const {spawnSync} = require('node:child_process');
 const api = require('../tv/zona-native-api');
 
-function harness() {
+function harness(host) {
   let now = 1000000, serial = 0;
   const pending = [], calls = [], timers = new Map();
   const portable = {makeTransport(time, agent) { return {client_time: 'opaque-time', cookie: 'opaque-cookie'}; }, encodeParams(value) {return 'encoded:' + JSON.stringify(value);} };
-  const native = api.create({portable, now: () => now,
+  const native = api.create({portable, host, now: () => now,
     setTimeout(fn, ms) {const id = ++serial; timers.set(id, {fn, at: now + ms}); return id;},
     clearTimeout(id) {timers.delete(id);},
     http(options, callback) {const call = {options, callback, aborted: false}; calls.push(call); pending.push(call); return {abort() {call.aborted = true;}};}
@@ -39,7 +39,7 @@ test('Android catalog sends plain JSON and sources alone use the legacy paramete
 });
 
 test('Android requests isolate server errors and never expose transport values', () => {
-  const h = harness(), results = [];
+  const h = harness('https://apirn1.mzona.net'), results = [];
   h.native.request('/search', {query: 'x'}, e => results.push(e)); h.clock();
   h.answer(h.calls[1], {error: 'private server detail opaque-cookie'}, 403);
   assert.equal(results[0].message, 'NATIVE_HTTP_ERROR'); assert.equal(results[0].statusCode, 403);
@@ -63,11 +63,56 @@ test('Android request queues are bounded, snapshot inputs, and release slots aft
 });
 
 test('clock failure and deadline call consumers once; late HTTP callbacks do not revive a request', () => {
-  const h = harness(), results = [];
+  const h = harness('https://apirn1.mzona.net'), results = [];
   h.native.request('/search', {query: 'x'}, e => results.push(e.code));
   h.tick(10001); assert.deepEqual(results, ['NATIVE_CLOCK_TIMEOUT']);
   h.clock(); assert.equal(results.length, 1); assert.equal(h.calls.length, 1);
   assert.equal(h.native.stats().active, 0); assert.equal(h.timers.size, 0);
+});
+
+test('the direct mirror is preferred and a transient response gets one try on the other direct host', () => {
+  const h = harness(), results = [];
+  h.native.request('/search', {query: 'test'}, (error, data) => results.push([error, data]));
+  assert.equal(h.calls[0].options.url, 'https://apiwn1.mzona.net/getTime');
+  h.answer(h.calls[0], {});
+  assert.equal(h.calls[1].options.timeoutMs, 7000);
+  h.answer(h.calls[1], {}, 503);
+  assert.equal(h.calls[2].options.url, 'https://apirn1.mzona.net/getTime');
+  h.answer(h.calls[2], {});
+  assert.equal(new URL(h.calls[3].options.url).origin, 'https://apirn1.mzona.net');
+  assert.equal(new URL(h.calls[3].options.url).searchParams.get('params'), '{"query":"test"}');
+  assert(h.calls.every(c => c.options.redirectPolicy === 'same-origin'));
+  h.answer(h.calls[3], {data: []});
+  h.answer(h.calls[1], {data: ['late result']});
+  assert.deepEqual(results, [[null, {data: []}]]);
+  assert.equal(h.timers.size, 0);
+});
+
+test('a dead mirror clock leaves time for fallback and reuses one fallback clock for concurrent requests', () => {
+  const h = harness(), results = [];
+  for (let i = 0; i < 3; i++) h.native.request('/search', {i}, (error, data) => results.push([error, data]));
+  assert.equal(h.calls.length, 1);
+  h.tick(4001);
+  assert(h.calls[0].aborted);
+  assert.equal(h.calls[1].options.url, 'https://apirn1.mzona.net/getTime');
+  h.answer(h.calls[0], {});
+  assert.equal(h.calls.length, 2, 'a late primary clock must stay ignored');
+  h.answer(h.calls[1], {});
+  assert.equal(h.calls.length, 5);
+  h.calls.slice(2).forEach(c => h.answer(c, {ok: true}));
+  assert(results.every(([error, data]) => !error && data.ok));
+  assert.equal(results.length, 3);
+  assert.equal(h.timers.size, 0);
+});
+
+test('authorization errors are returned without trying another mirror', () => {
+  const h = harness(), errors = [];
+  h.native.request('/search', {query: 'test'}, error => errors.push(error));
+  h.answer(h.calls[0], {});
+  h.answer(h.calls[1], {}, 403);
+  assert.equal(h.calls.length, 2);
+  assert.equal(errors[0].statusCode, 403);
+  assert.equal(h.timers.size, 0);
 });
 
 test('malformed paths and oversized or circular parameters never reach the network', () => {

@@ -58,3 +58,16 @@ test('HTTP abort, size limit and TLS downgrade fail exactly once', () => {
     assert.equal(replies.length, 1); assert(replies[0]); assert(h.calls[0].req.destroyed); assert.equal(h.timers.size, 0);
   }
 });
+
+test('API redirect policy permits same origin and refuses to forward headers to another host', () => {
+  const h = harness(), replies = [];
+  h.request({url: 'https://native.test/search', redirectPolicy: 'same-origin',
+    headers: {Cookie: 'opaque-fixture'}}, (error, data) => replies.push([error, data]));
+  h.respond(0, 302, undefined, {location: '/same-origin'});
+  assert.equal(h.calls.length, 2);
+  h.respond(1, 302, undefined, {location: 'https://other.test/search'});
+  assert.equal(h.calls.length, 2);
+  assert.match(replies[0][0].message, /Cross-origin redirect rejected/);
+  assert.equal(replies.length, 1);
+  assert.equal(h.timers.size, 0);
+});
