@@ -45,6 +45,10 @@ function request(options, callback) {
         res.resume();
         if (++redirects > 8) return finish(new Error('Redirect limit'));
         var next = url.resolve(target, res.headers.location);
+        if (options.redirectPolicy === 'same-origin') {
+          var first = url.parse(options.url), destination = url.parse(next);
+          if (first.protocol !== destination.protocol || first.host !== destination.host) return finish(new Error('Cross-origin redirect rejected'));
+        }
         if (parsed.protocol === 'https:' && url.parse(next).protocol !== 'https:') return finish(new Error('TLS downgrade rejected'));
         return send(next, res.statusCode === 303 ? 'GET' : method, res.statusCode === 303 ? null : body);
       }
